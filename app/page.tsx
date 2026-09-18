@@ -19,7 +19,23 @@ interface CompanyCandidate {
 }
 
 type RowStatus = "idle" | "researching" | "scoring" | "done" | "error";
-type EmailStatus = "idle" | "drafting" | "ready" | "approved" | "error";
+type EmailStatus = "idle" | "drafting" | "ready" | "approved" | "sending" | "sent" | "error";
+type ReplyStatus =
+  | "beklemede"
+  | "ilgileniyor"
+  | "fiyat_istedi"
+  | "gorusme_istedi"
+  | "daha_sonra"
+  | "ilgilenmiyor";
+
+const REPLY_STATUS_LABELS: Record<ReplyStatus, string> = {
+  beklemede: "Cevap bekleniyor",
+  ilgileniyor: "🟢 İlgileniyor",
+  fiyat_istedi: "💰 Fiyat istedi",
+  gorusme_istedi: "📅 Görüşme istedi",
+  daha_sonra: "🟡 Daha sonra iletişime geçin",
+  ilgilenmiyor: "🔴 İlgilenmiyor",
+};
 
 interface CompanyRow extends CompanyCandidate {
   status: RowStatus;
@@ -29,6 +45,10 @@ interface CompanyRow extends CompanyCandidate {
   emailStatus: EmailStatus;
   emailDraft?: EmailDraft;
   emailError?: string;
+  sentAt?: string;
+  sentTestMode?: boolean;
+  replyStatus?: ReplyStatus;
+  sendError?: string;
 }
 
 /**
@@ -198,11 +218,51 @@ export default function Home() {
   function handleApprove(row: CompanyRow) {
     if (!row.emailDraft) return;
     // NOT: Bu sadece "onaylandı" olarak işaretliyor, GERÇEKTEN GÖNDERMİYOR.
-    // Gerçek gönderim (Gmail/kurumsal hesap entegrasyonu) Faz 5'te ekleniyor.
+    // Gerçek gönderim ayrı bir "Gönder" adımı - aşağıdaki handleSendEmail.
     updateRow(row.domain, {
       emailStatus: "approved",
       emailDraft: { ...row.emailDraft, approvedAt: new Date().toISOString() },
     });
+  }
+
+  async function handleSendEmail(row: CompanyRow) {
+    if (!row.emailDraft || !row.research) return;
+    const to = row.research.contactEmails[0]?.email;
+    if (!to) return;
+
+    updateRow(row.domain, { emailStatus: "sending", sendError: undefined });
+
+    try {
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to, subject: row.emailDraft.subject, body: row.emailDraft.body }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Gönderim hatası");
+
+      updateRow(row.domain, {
+        emailStatus: "sent",
+        sentAt: data.result.sentAt,
+        sentTestMode: data.result.testMode,
+        replyStatus: "beklemede",
+      });
+    } catch (err) {
+      // Taslak hâlâ hazır bekliyor - "approved"a geri dönüp tekrar
+      // denemeye izin veriyoruz, ayrı bir "error" durumuna geçmiyoruz.
+      updateRow(row.domain, {
+        emailStatus: "approved",
+        sendError: err instanceof Error ? err.message : "Bilinmeyen hata",
+      });
+    }
+  }
+
+  function handleReplyStatusChange(row: CompanyRow, status: ReplyStatus) {
+    updateRow(row.domain, { replyStatus: status });
+    // Kullanıcı "İlgilenmiyor" işaretlerse, bunu opt-out ile karıştırmayın -
+    // ilgilenmemek ayrı bir şey, ret hakkını kullanmak ayrı. Karışıklık
+    // olmasın diye burada otomatik opt-out YAPMIYORUZ, kullanıcı isterse
+    // ayrıca "Ret Etti" butonunu kullanır.
   }
 
   function handleOptOut(row: CompanyRow) {
@@ -454,7 +514,10 @@ export default function Home() {
                       </div>
                     )}
 
-                    {(row.emailStatus === "ready" || row.emailStatus === "approved") &&
+                    {(row.emailStatus === "ready" ||
+                      row.emailStatus === "approved" ||
+                      row.emailStatus === "sending" ||
+                      row.emailStatus === "sent") &&
                       row.emailDraft && (
                         <div className="space-y-2">
                           <div>
@@ -473,7 +536,7 @@ export default function Home() {
                               onChange={(e) =>
                                 handleEditDraft(row, { subject: e.target.value })
                               }
-                              disabled={row.emailStatus === "approved"}
+                              disabled={row.emailStatus !== "ready"}
                             />
                           </div>
                           <div>
@@ -485,7 +548,7 @@ export default function Home() {
                               rows={6}
                               value={row.emailDraft.body}
                               onChange={(e) => handleEditDraft(row, { body: e.target.value })}
-                              disabled={row.emailStatus === "approved"}
+                              disabled={row.emailStatus !== "ready"}
                             />
                           </div>
 
@@ -507,10 +570,64 @@ export default function Home() {
                           )}
 
                           {row.emailStatus === "approved" && (
-                            <p className="rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                              ✓ Onaylandı ({new Date(row.emailDraft.approvedAt!).toLocaleString("tr-TR")}).
-                              Gerçek gönderim Faz 5&apos;te eklenecek - şu an sadece hazır ve onaylı.
-                            </p>
+                            <div>
+                              <p className="rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                                ✓ Onaylandı ({new Date(row.emailDraft.approvedAt!).toLocaleString("tr-TR")})
+                              </p>
+                              {row.sendError && (
+                                <p className="mt-2 text-sm text-red-600">{row.sendError}</p>
+                              )}
+                              <button
+                                onClick={() => handleSendEmail(row)}
+                                className="mt-2 rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white"
+                              >
+                                {row.sendError ? "Tekrar Dene" : "📤 Gönder"}
+                              </button>
+                            </div>
+                          )}
+
+                          {row.emailStatus === "sending" && (
+                            <p className="text-sm text-blue-500">Gönderiliyor...</p>
+                          )}
+
+                          {row.emailStatus === "sent" && (
+                            <div className="space-y-2">
+                              <p
+                                className={`rounded-md px-3 py-2 text-xs ${
+                                  row.sentTestMode
+                                    ? "bg-amber-50 text-amber-800"
+                                    : "bg-emerald-50 text-emerald-800"
+                                }`}
+                              >
+                                {row.sentTestMode
+                                  ? `🧪 TEST MODUNDA gönderildi (${new Date(row.sentAt!).toLocaleString("tr-TR")}) - kendi test adresinize gitti, gerçek şirkete gitmedi.`
+                                  : `✓ Gerçekten gönderildi (${new Date(row.sentAt!).toLocaleString("tr-TR")})`}
+                              </p>
+                              <div>
+                                <label className="block text-xs font-medium text-neutral-500">
+                                  Cevap durumu (manuel güncelleyin)
+                                </label>
+                                <select
+                                  className="mt-1 rounded-md border border-neutral-300 px-2 py-1 text-sm"
+                                  value={row.replyStatus ?? "beklemede"}
+                                  onChange={(e) =>
+                                    handleReplyStatusChange(row, e.target.value as ReplyStatus)
+                                  }
+                                >
+                                  {Object.entries(REPLY_STATUS_LABELS).map(([value, label]) => (
+                                    <option key={value} value={value}>
+                                      {label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <button
+                                onClick={() => handleOptOut(row)}
+                                className="text-xs text-neutral-500 hover:underline"
+                              >
+                                Ret Etti / İletişimi Durdur
+                              </button>
+                            </div>
                           )}
                         </div>
                       )}
