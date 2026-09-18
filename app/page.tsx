@@ -7,16 +7,9 @@ import type {
   ScanRequest,
   ExtraCriterion,
   EmailDraft,
+  CompanyCandidate,
 } from "@/lib/salespilot/types";
 import { isOptedOut, markOptedOut } from "@/lib/opt-out";
-
-interface CompanyCandidate {
-  domain: string;
-  title: string;
-  snippet: string;
-  url: string;
-  foundVia: string[];
-}
 
 type RowStatus = "idle" | "researching" | "scoring" | "done" | "error";
 type EmailStatus = "idle" | "drafting" | "ready" | "approved" | "sending" | "sent" | "error";
@@ -36,6 +29,23 @@ const REPLY_STATUS_LABELS: Record<ReplyStatus, string> = {
   daha_sonra: "🟡 Daha sonra iletişime geçin",
   ilgilenmiyor: "🔴 İlgilenmiyor",
 };
+
+const BUYER_ROLE_LABELS = {
+  oem_manufacturer: "OEM / makine üreticisi",
+  system_integrator: "Sistem entegratörü",
+  end_user: "Son kullanıcı",
+  distributor: "Distribütör / kanal adayı",
+  service_provider: "Hizmet şirketi",
+  direct_competitor: "Doğrudan rakip",
+  unknown: "Rol doğrulanamadı",
+} as const;
+
+const REVIEW_STATUS_LABELS = {
+  qualified: "Nitelikli",
+  unqualified: "Eşik altında",
+  needs_research: "Araştırma gerekli",
+  disqualified: "Uygun değil",
+} as const;
 
 interface CompanyRow extends CompanyCandidate {
   status: RowStatus;
@@ -62,6 +72,7 @@ export default function Home() {
   const [targetSector, setTargetSector] = useState("");
   const [targetRegion, setTargetRegion] = useState("");
   const [productOrService, setProductOrService] = useState("");
+  const [companyType, setCompanyType] = useState("");
   const [extraCriteria, setExtraCriteria] = useState("");
   const [scoreThreshold, setScoreThreshold] = useState(75);
 
@@ -77,6 +88,7 @@ export default function Home() {
       productOrService,
       targetSector,
       targetRegion,
+      companyType: companyType || undefined,
       extraCriteria,
       scoreThreshold,
     };
@@ -92,7 +104,7 @@ export default function Home() {
       const res = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetSector, targetRegion, productOrService, extraCriteria }),
+        body: JSON.stringify({ targetSector, targetRegion, productOrService, extraCriteria, companyType }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -128,7 +140,7 @@ export default function Home() {
       const researchRes = await fetch("/api/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyName: row.title, domain: row.domain }),
+        body: JSON.stringify({ companyName: row.title, domain: row.domain, scanRequest }),
       });
       const researchData = await researchRes.json();
       if (!researchRes.ok) throw new Error(researchData.error ?? "Araştırma hatası");
@@ -337,6 +349,19 @@ export default function Home() {
         </div>
 
         <div>
+          <label className="block text-sm font-medium">Hedef şirket türü (opsiyonel)</label>
+          <input
+            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2"
+            placeholder="örn. OEM makine üreticisi, sistem entegratörü"
+            value={companyType}
+            onChange={(e) => setCompanyType(e.target.value)}
+          />
+          <p className="mt-1 text-xs text-neutral-400">
+            Makine üreticilerinin yanlışlıkla rakip sayılmaması için hedef alıcı rolünü belirtin.
+          </p>
+        </div>
+
+        <div>
           <label className="block text-sm font-medium">Ek kriterler (opsiyonel)</label>
           <input
             className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2"
@@ -398,20 +423,26 @@ export default function Home() {
                       {row.title}
                     </a>
                     <p className="text-sm text-neutral-500">{row.domain}</p>
+                    <p className="mt-1 text-xs text-neutral-400">
+                      Keşif güveni: {row.discoveryConfidence === "high" ? "yüksek" : "orta"}
+                      {row.foundVia.length > 1 ? ` · ${row.foundVia.length} sorguda bulundu` : ""}
+                    </p>
                     {row.status === "done" && row.research && (
-                      <p className="mt-1 text-xs">
-                        {row.research.contactEmails.length > 0 ? (
-                          <span className="text-emerald-700">
-                            ✉ {row.research.contactEmails[0].email}
-                            <span className="text-neutral-400">
-                              {" "}
-                              ({row.research.contactEmails[0].sourcePath})
+                      <div className="mt-1 space-y-1 text-xs">
+                        <p className="text-neutral-600">
+                          {BUYER_ROLE_LABELS[row.research.buyerRole]} · Kimlik güveni: {row.research.identityConfidence}
+                        </p>
+                        <p>
+                          {row.research.contactEmails.length > 0 ? (
+                            <span className="text-emerald-700">
+                              ✉ {row.research.contactEmails[0].email}
+                              <span className="text-neutral-400"> ({row.research.contactEmails[0].sourcePath}, domain doğrulandı)</span>
                             </span>
-                          </span>
-                        ) : (
-                          <span className="text-neutral-400">✉ E-posta bulunamadı</span>
-                        )}
-                      </p>
+                          ) : (
+                            <span className="text-neutral-400">✉ Doğrulanmış kurumsal e-posta bulunamadı</span>
+                          )}
+                        </p>
+                      </div>
                     )}
                   </div>
 
@@ -428,15 +459,20 @@ export default function Home() {
                       <span className="text-xs text-red-600">{row.errorMessage}</span>
                     )}
                     {row.status === "done" && row.score && (
-                      <span
-                        className={`rounded-full px-3 py-1 text-sm font-semibold ${
-                          row.score.qualified
+                      <div className="space-y-1">
+                        <span className={`rounded-full px-3 py-1 text-sm font-semibold ${
+                          row.score.reviewStatus === "qualified"
                             ? "bg-green-100 text-green-700"
-                            : "bg-neutral-100 text-neutral-600"
-                        }`}
-                      >
-                        {row.score.totalScore} / 100
-                      </span>
+                            : row.score.reviewStatus === "needs_research"
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-neutral-100 text-neutral-600"
+                        }`}>
+                          {row.score.totalScore} / 100
+                        </span>
+                        <p className="text-xs text-neutral-500">
+                          {REVIEW_STATUS_LABELS[row.score.reviewStatus]} · Kanıt %{row.score.evidenceConfidence}
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -444,6 +480,12 @@ export default function Home() {
                 {row.status === "done" && row.score && row.score.isPlausibleLead === false && (
                   <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
                     ⚠ Muhtemelen uygun bir lead değil: {row.score.leadViabilityReason}
+                  </p>
+                )}
+
+                {row.status === "done" && row.score?.reviewStatus === "needs_research" && (
+                  <p className="mt-2 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                    ℹ Bu şirket uygunsuz sayılmadı; güvenilir karar için yeterli kanıt toplanamadı.
                   </p>
                 )}
 

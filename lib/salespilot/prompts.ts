@@ -8,6 +8,7 @@
  */
 
 import type { ScanRequest, CompanyResearch } from "./types";
+import type { SearchInputs } from "./discovery";
 
 const NO_HALUCINATION_RULE = `
 KRİTİK KURAL: Sana verilmeyen hiçbir bilgiyi uydurma. Bir şey kaynak metinde
@@ -58,10 +59,45 @@ export interface ScrapedPage {
   textContent: string; // temizlenmiş sayfa metni
 }
 
+export function buildDiscoveryQueriesPrompt(
+  input: SearchInputs,
+  locale: { language: string; nativeRegion: string; siteSuffix?: string }
+): string {
+  return `
+Bir B2B şirket keşif uzmanısın. Kullanıcının Türkçe veya başka bir dilde
+verdiği hedefi, hedef ülkenin yerel dilinde Google arama sorgularına çevir.
+
+Hedef sektör: ${input.targetSector}
+Hedef bölge: ${input.targetRegion} (yerel yazımı: ${locale.nativeRegion})
+Satılan ürün/hizmet: ${input.productOrService}
+Hedef şirket türü: ${input.companyType || "belirtilmedi"}
+Arama dili: ${locale.language}
+Ülke domain eki: ${locale.siteSuffix || "belirtilmedi"}
+
+Kurallar:
+- Tam olarak 6 sorgu üret ve bütün sektör/rol terimlerini ${locale.language}
+  diline çevir. Türkçe terimleri çevirmeden bırakma.
+- Amaç ürünü SATAN siteleri değil, ürünü satın alabilecek resmî şirket
+  sitelerini bulmak. OEM üreticiler, makine üreticileri, sistem entegratörleri
+  ve uygun son kullanıcıları hedefle.
+- En az iki sorguda şirket/üretici + Kontakt/Impressum/About benzeri resmî
+  şirket sayfası niyeti kullan.
+- En az iki sorguda ülke domain eki varsa site: operatörü kullan.
+- Blog, haber, liste, rehber ve pazar yeri sonuçlarını azaltmak için negatif
+  inurl operatörleri ekle.
+- Sorgular kısa olsun; açıklama yazma.
+
+${JSON_ONLY_RULE}
+
+JSON şeması: { "queries": ["...", "...", "...", "...", "...", "..."] }
+`.trim();
+}
+
 export function buildResearchPrompt(
   companyName: string,
   domain: string,
-  pages: ScrapedPage[]
+  pages: ScrapedPage[],
+  scanRequest: ScanRequest
 ): string {
   const pagesBlock = pages
     .map((p) => `### Sayfa: ${p.path} (${p.url})\n${p.textContent.slice(0, 4000)}`)
@@ -71,6 +107,10 @@ export function buildResearchPrompt(
 Sen bir B2B satış araştırma asistanısın. Aşağıda "${companyName}" (${domain})
 şirketinin web sitesinden alınan sayfa içerikleri var. Bu içerikleri oku ve
 şirket hakkında satış açısından anlamlı, DOĞRULANABİLİR faktleri çıkar.
+
+Kullanıcının sattığı ürün/hizmet: ${scanRequest.productOrService}
+Hedef sektör: ${scanRequest.targetSector}
+Hedef bölge: ${scanRequest.targetRegion}
 
 ${NO_HALUCINATION_RULE}
 
@@ -87,6 +127,26 @@ ${UNTRUSTED_CONTENT_RULE}
 - Kendi markası var mı
 - Şirket ölçeği hakkında ipucu (çalışan sayısı, "büyük ölçekli" gibi ifadeler)
 
+AYRICA ŞİRKET KİMLİĞİNİ VE TİCARİ ROLÜNÜ SINIFLANDIR:
+- entityType yalnızca şu değerlerden biri olsun: company, directory,
+  marketplace, publisher, public_institution, unknown.
+- buyerRole yalnızca şu değerlerden biri olsun: oem_manufacturer,
+  system_integrator, end_user, distributor, service_provider,
+  direct_competitor, unknown.
+- Bir makine/OEM üreticisi, kullanıcının parçasını kendi makinesine entegre
+  ediyorsa RAKİP DEĞİL potansiyel ALICIDIR. Örneğin lineer kızak satan bir
+  kullanıcı için CNC router üreticisi oem_manufacturer ve doğal alıcıdır.
+- "Aynı sektörde" olmak direct_competitor demek değildir. Yalnızca şirket
+  kullanıcının sattığı nihai ürün/hizmetin aynısını kendi müşterilerine
+  üretiyor/satıyorsa direct_competitor seç.
+- Distribütör aynı ürünü satıyor olsa bile kanal/bayi müşterisi olabilir;
+  doğrudan üretici olduğuna dair kanıt yoksa otomatik rakip sayma.
+- sellsSameOffering yalnızca açık kanıt varsa yes olsun.
+- usesOfferingInProductsOrOperations, şirketin ürünü kendi makinesinde,
+  üretiminde veya operasyonunda kullanması açıkça doğrulanıyorsa yes olsun.
+  Sektör doğası gereği güçlü bir teknik çıkarım varsa unverified bir fact ile
+  belirt; bunu verified kanıt gibi sunma.
+
 İçerik zengin olsa bile EN FAZLA 8 fact döndür - en satış açısından en önemli
 ve en doğrulanabilir olanları seç, geri kalanını atla. Bu bir zorunluluktur,
 çünkü çıktı uzunluğu sınırlıdır ve daha fazla fact vermeye çalışman JSON'ın
@@ -96,6 +156,17 @@ ${JSON_ONLY_RULE}
 
 JSON şeması:
 {
+  "canonicalCompanyName": "sitede doğrulanan gerçek şirket/marka adı",
+  "officialWebsite": "yes|no|unknown",
+  "entityType": "company|directory|marketplace|publisher|public_institution|unknown",
+  "buyerRole": "oem_manufacturer|system_integrator|end_user|distributor|service_provider|direct_competitor|unknown",
+  "identityConfidence": "high|medium|low",
+  "relationshipSignals": {
+    "sellsSameOffering": "yes|no|unknown",
+    "usesOfferingInProductsOrOperations": "yes|no|unknown",
+    "relationshipReason": "kısa, kanıta dayalı açıklama",
+    "evidenceRefs": ["ev_1"]
+  },
   "summary": "2-3 cümlelik nötr özet",
   "facts": [
     {
@@ -187,11 +258,10 @@ ALABİLECEK bir işletme mi? isPlausibleLead: false yapmak için SADECE
 aşağıdaki ÜÇ durumdan biri geçerli olmalı - BAŞKA HİÇBİR GEREKÇEYLE
 false yazma, kendi yorumunla üçüncü bir kategori İCAT ETME:
 
-1. RAKİP/TEDARİKÇİ: Şirket, kullanıcının sattığı ÜRÜN/HİZMETİN AYNISINI
-   veya çok benzerini satıyor. "Bu şirketin işi aynı kategoride" ile "bu
-   şirket bu ürünü satın alır" AYNI ŞEY DEĞİL - bir rakibin ürün/sektör
-   uyumu yüksek GÖRÜNEBİLİR ama bu yanıltıcıdır, çünkü rakip bu ürünü
-   satın almaz, kendisi satar.
+1. DOĞRUDAN RAKİP: Şirket kullanıcının sattığı NİHAİ ürün/hizmetin aynısını
+   kendisi üretiyor ve satıyor; ayrıca doğal bir satın alma veya kanal ilişkisi
+   bulunmuyor. Aynı sektörde olmak, ürünü makinesine entegre etmek ya da ürünü
+   distribütör olarak satmak tek başına rakip sayılmak için yeterli değildir.
 2. GERÇEK İŞLETME DEĞİL: Şirket bir dizin, pazar yeri, karşılaştırma
    sitesi, ilan sitesi veya aracı platformdur (başka işletmeleri
    listeleyen bir hizmet, kendi başına faaliyet gösteren bir işletme
@@ -210,6 +280,19 @@ filosunu yönetmek için tam da bu tür bir yazılıma ihtiyaç duyar, bu
 yüzden isPlausibleLead: true olmalı. Sadece yukarıdaki 1 veya 2 numaralı
 durum kesin ve açıkça geçerliyse false yaz; emin değilsen true yaz ve
 normal puanlamaya bırak.
+
+Şirket kimliği ve rolü (araştırma aşamasında çıkarıldı):
+- Resmî site: ${research.officialWebsite}
+- Varlık türü: ${research.entityType}
+- Alıcı rolü: ${research.buyerRole}
+- Aynı ürünü satıyor: ${research.relationshipSignals.sellsSameOffering}
+- Ürünü kendi ürün/operasyonunda kullanıyor: ${research.relationshipSignals.usesOfferingInProductsOrOperations}
+- İlişki gerekçesi: ${research.relationshipSignals.relationshipReason}
+
+ÖZEL OEM KURALI: buyerRole=oem_manufacturer veya system_integrator ve
+usesOfferingInProductsOrOperations=yes ise, sırf ürettiği makinenin içinde
+kullanıcının ürünü bulunduğu için RAKİP deme. Bu şirket tipik olarak parçayı
+satın alıp kendi çözümüne entegre eden potansiyel müşteridir.
 
 isPlausibleLead: false olduğunda, sectorFit ve productFit puanlarını da
 buna uygun şekilde DÜŞÜK ver (0-5 aralığı) - yüzeysel anahtar kelime
@@ -246,7 +329,7 @@ ${JSON_ONLY_RULE}
 JSON şeması:
 {
   "isPlausibleLead": true,
-  "leadViabilityReason": "kısa gerekçe - neden alıcı olabilir/olamaz",
+  "leadViabilityReason": "kısa gerekçe - şirket rolü ile neden alıcı olabilir/olamaz",
   "sectorFit": { "criterion": "Sektör uyumu", "maxPoints": 30, "awardedPoints": 0, "confidence": "high|medium|low", "reasoning": "...", "evidenceRefs": ["ev_1"] },
   "regionFit": { "criterion": "Bölge uyumu", "maxPoints": 15, "awardedPoints": 0, "confidence": "...", "reasoning": "...", "evidenceRefs": [] },
   "productFit": { "criterion": "Ürün/Hizmet uyumu", "maxPoints": 25, "awardedPoints": 0, "confidence": "...", "reasoning": "...", "evidenceRefs": [] },

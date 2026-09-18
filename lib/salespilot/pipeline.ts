@@ -18,20 +18,25 @@
 import Anthropic from "@anthropic-ai/sdk";
 import {
   buildResearchPrompt,
+  buildDiscoveryQueriesPrompt,
   buildCriteriaParsingPrompt,
   buildScoringPrompt,
   buildEmailPrompt,
   type ScrapedPage,
 } from "./prompts";
+import type { SearchInputs } from "./discovery";
 import type {
   CompanyResearch,
   ScoreBreakdown,
   ScanRequest,
   EmailDraft,
-  CriterionScore,
   ExtraCriterion,
   ContactEmailCandidate,
+  EntityType,
+  BuyerRole,
+  TernarySignal,
 } from "./types";
+import { finalizeLeadScore, type ModelScore } from "./classification";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -93,6 +98,28 @@ async function callAnthropicForJson<T>(params: {
   }
 }
 
+export async function generateDiscoveryQueries(
+  input: SearchInputs,
+  locale: { language: string; nativeRegion: string; siteSuffix?: string },
+  fallbackQueries: string[]
+): Promise<string[]> {
+  if (!process.env.ANTHROPIC_API_KEY) return fallbackQueries;
+  try {
+    const parsed = await callAnthropicForJson<{ queries: string[] }>({
+      model: CRITERIA_MODEL,
+      maxTokens: 700,
+      prompt: buildDiscoveryQueriesPrompt(input, locale),
+    });
+    const queries = (parsed.queries ?? [])
+      .filter((query): query is string => typeof query === "string" && query.trim().length > 4)
+      .map((query) => query.replace(/\s+/g, " ").trim());
+    return queries.length >= 4 ? Array.from(new Set(queries)).slice(0, 8) : fallbackQueries;
+  } catch (error) {
+    console.error("Yerelleştirilmiş sorgular üretilemedi; deterministik sorgular kullanılıyor.", error);
+    return fallbackQueries;
+  }
+}
+
 // ---------------------------------------------------------------------
 // Adım 1: Araştırma
 // ---------------------------------------------------------------------
@@ -101,6 +128,7 @@ export async function researchCompany(
   companyName: string,
   domain: string,
   pages: ScrapedPage[],
+  scanRequest: ScanRequest,
   emailCandidates: ContactEmailCandidate[] = []
 ): Promise<CompanyResearch> {
   if (pages.length === 0) {
@@ -108,6 +136,16 @@ export async function researchCompany(
     return {
       companyName,
       domain,
+      officialWebsite: "unknown",
+      entityType: "unknown",
+      buyerRole: "unknown",
+      identityConfidence: "low",
+      relationshipSignals: {
+        sellsSameOffering: "unknown",
+        usesOfferingInProductsOrOperations: "unknown",
+        relationshipReason: "Web sitesinden veri toplanamadığı için ticari ilişki belirlenemedi.",
+        evidenceRefs: [],
+      },
       summary: "Web sitesinden veri toplanamadı.",
       facts: [],
       contactEmails: emailCandidates, // sayfa metni boş olsa bile mailto linki bulunmuş olabilir
@@ -118,17 +156,38 @@ export async function researchCompany(
   }
 
   const parsed = await callAnthropicForJson<{
+    canonicalCompanyName: string;
+    officialWebsite: TernarySignal;
+    entityType: EntityType;
+    buyerRole: BuyerRole;
+    identityConfidence: "high" | "medium" | "low";
+    relationshipSignals: {
+      sellsSameOffering: TernarySignal;
+      usesOfferingInProductsOrOperations: TernarySignal;
+      relationshipReason: string;
+      evidenceRefs: string[];
+    };
     summary: string;
     facts: CompanyResearch["facts"];
   }>({
     model: RESEARCH_MODEL,
     maxTokens: 2200,
-    prompt: buildResearchPrompt(companyName, domain, pages),
+    prompt: buildResearchPrompt(companyName, domain, pages, scanRequest),
   });
 
   return {
-    companyName,
+    companyName: parsed.canonicalCompanyName?.trim() || companyName,
     domain,
+    officialWebsite: parsed.officialWebsite ?? "unknown",
+    entityType: parsed.entityType ?? "unknown",
+    buyerRole: parsed.buyerRole ?? "unknown",
+    identityConfidence: parsed.identityConfidence ?? "low",
+    relationshipSignals: parsed.relationshipSignals ?? {
+      sellsSameOffering: "unknown",
+      usesOfferingInProductsOrOperations: "unknown",
+      relationshipReason: "Ticari ilişki belirlenemedi.",
+      evidenceRefs: [],
+    },
     summary: parsed.summary,
     facts: parsed.facts,
     contactEmails: emailCandidates, // AI'dan değil, doğrudan kazımadan geliyor - uydurma yok
@@ -173,48 +232,13 @@ export async function scoreCompany(
   scanRequest: ScanRequest,
   extraCriteriaRubric: ExtraCriterion[]
 ): Promise<ScoreBreakdown> {
-  const parsed = await callAnthropicForJson<{
-    isPlausibleLead: boolean;
-    leadViabilityReason: string;
-    sectorFit: CriterionScore;
-    regionFit: CriterionScore;
-    productFit: CriterionScore;
-    extraCriteria: CriterionScore[];
-  }>({
+  const parsed = await callAnthropicForJson<ModelScore>({
     model: SCORING_MODEL,
     maxTokens: 2000,
     prompt: buildScoringPrompt(research, scanRequest, extraCriteriaRubric),
   });
 
-  // GÜVENLİK AĞI: Modelin kendi "bu bir rakip/aracı, alıcı değil" tespitiyle
-  // çelişip yine de yüksek puan verdiği gözlemlendi (17 Eylül 2026, SaaS
-  // testinde). Prompt'a güvenmek yetmiyor - isPlausibleLead: false ise
-  // sectorFit/productFit'i kod tarafında da 5 puanla sınırlıyoruz, model ne
-  // yazmış olursa olsun.
-  const MAX_POINTS_IF_NOT_PLAUSIBLE = 5;
-  if (parsed.isPlausibleLead === false) {
-    parsed.sectorFit = {
-      ...parsed.sectorFit,
-      awardedPoints: Math.min(parsed.sectorFit.awardedPoints, MAX_POINTS_IF_NOT_PLAUSIBLE),
-    };
-    parsed.productFit = {
-      ...parsed.productFit,
-      awardedPoints: Math.min(parsed.productFit.awardedPoints, MAX_POINTS_IF_NOT_PLAUSIBLE),
-    };
-  }
-
-  // Toplam skoru modele bırakmıyoruz, kendimiz topluyoruz - tutarlılık için.
-  const totalScore =
-    parsed.sectorFit.awardedPoints +
-    parsed.regionFit.awardedPoints +
-    parsed.productFit.awardedPoints +
-    parsed.extraCriteria.reduce((sum, c) => sum + c.awardedPoints, 0);
-
-  return {
-    ...parsed,
-    totalScore,
-    qualified: totalScore >= scanRequest.scoreThreshold,
-  };
+  return finalizeLeadScore(parsed, research, scanRequest);
 }
 
 // ---------------------------------------------------------------------
@@ -261,7 +285,7 @@ export async function processOneCompany(
   extraCriteriaRubric: ExtraCriterion[],
   senderCompanyName: string
 ) {
-  const research = await researchCompany(companyName, domain, pages);
+  const research = await researchCompany(companyName, domain, pages, scanRequest);
   const score = await scoreCompany(research, scanRequest, extraCriteriaRubric);
 
   // Sadece nitelikli lead'ler için mail taslağı üret (maliyet + gereksizlik)

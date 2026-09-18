@@ -18,6 +18,25 @@
 
 export type VerificationStatus = "verified" | "unverified" | "not_found";
 
+export type EntityType =
+  | "company"
+  | "directory"
+  | "marketplace"
+  | "publisher"
+  | "public_institution"
+  | "unknown";
+
+export type BuyerRole =
+  | "oem_manufacturer"
+  | "system_integrator"
+  | "end_user"
+  | "distributor"
+  | "service_provider"
+  | "direct_competitor"
+  | "unknown";
+
+export type TernarySignal = "yes" | "no" | "unknown";
+
 /** Araştırma sırasında bulunan tek bir bilgi parçası ve kaynağı. */
 export interface EvidenceItem {
   id: string; // örn. "ev_1" - puanlamada referans vermek için
@@ -37,12 +56,25 @@ export interface ContactEmailCandidate {
   email: string;
   sourceUrl: string;
   sourcePath: string;
+  domainMatch: boolean;
+  verificationStatus: "domain_verified" | "rejected";
+  rejectionReason?: string;
 }
 
 /** Bir şirket hakkında toplanan tüm ham araştırma verisi. */
 export interface CompanyResearch {
   companyName: string;
   domain: string;
+  officialWebsite: TernarySignal;
+  entityType: EntityType;
+  buyerRole: BuyerRole;
+  identityConfidence: "high" | "medium" | "low";
+  relationshipSignals: {
+    sellsSameOffering: TernarySignal;
+    usesOfferingInProductsOrOperations: TernarySignal;
+    relationshipReason: string;
+    evidenceRefs: string[];
+  };
   summary: string; // 2-3 cümlelik nötr özet, spekülasyon içermez
   facts: EvidenceItem[];
   contactEmails: ContactEmailCandidate[]; // boş olabilir - o zaman bulunamadı demektir
@@ -85,7 +117,22 @@ export interface ScoreBreakdown {
   productFit: CriterionScore;
   extraCriteria: CriterionScore[]; // toplam max 30 - kullanıcının serbest metninden ayrıştırılır
   totalScore: number; // 0-100
-  qualified: boolean; // totalScore >= threshold
+  /** Araştırmanın bu skoru destekleme gücü; uygunluk puanından ayrıdır. */
+  evidenceConfidence: number; // 0-100
+  reviewStatus: "qualified" | "unqualified" | "needs_research" | "disqualified";
+  qualified: boolean; // eşik + yeterli kanıt + geçerli şirket şartlarının tümü
+}
+
+// ---- Arama / aday keşfi ----
+
+export interface CompanyCandidate {
+  domain: string;
+  title: string;
+  snippet: string;
+  url: string;
+  foundVia: string[];
+  discoveryConfidence: "high" | "medium";
+  discoveryReason: string;
 }
 
 // ---- İYS / rıza takibi ----

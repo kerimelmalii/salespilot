@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { scrapeCompanyPages } from "@/lib/salespilot/scraping";
 import { researchCompany } from "@/lib/salespilot/pipeline";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import type { ScanRequest } from "@/lib/salespilot/types";
 
 interface ResearchRequestBody {
   companyName: string;
   domain: string;
+  scanRequest: ScanRequest;
 }
 
 export async function POST(req: NextRequest) {
@@ -31,13 +33,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
-  if (!body.companyName || !body.domain) {
-    return NextResponse.json({ error: "companyName ve domain zorunlu." }, { status: 400 });
+  if (!body.companyName || !body.domain || !body.scanRequest) {
+    return NextResponse.json({ error: "companyName, domain ve scanRequest zorunlu." }, { status: 400 });
   }
 
   try {
     const { pages, emailCandidates } = await scrapeCompanyPages(body.domain);
-    const research = await researchCompany(body.companyName, body.domain, pages, emailCandidates);
+    const research = await researchCompany(
+      body.companyName,
+      body.domain,
+      pages,
+      body.scanRequest,
+      emailCandidates
+    );
     return NextResponse.json({ research });
   } catch (err) {
     // MVP1 test aşamasındayız - gerçek hata mesajını istemciye de gönderiyoruz

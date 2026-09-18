@@ -80,6 +80,34 @@ hata mesajı görülmeli. `sfr.com.tr` 85 puan aldı ama gerekçesi UI'da
 görünmedi ve "gıda üreticileri" araması için bir ambalaj/ilaç sektörü
 sitesi olması şüpheli - bu da tekrar test edilip kontrol edilmeli.
 
+## Lead kalitesi revizyonu (18 Eylül 2026)
+
+Almanya/CNC pilotunda arama sonuçlarının şirket yerine liste, blog ve ürün
+sayfalarını lead saydığı; ayrıca CNC makine üreticilerinin lineer hareket
+bileşenleri için alıcı olmalarına rağmen rakip diye elendiği görüldü. Akış
+şu şekilde yeniden kuruldu:
+
+- Hedef ülkenin Google pazarı/dili kullanılıyor. Claude tarama başına altı
+  alıcı odaklı sorguyu hedef ülkenin yerel dilinde üretiyor; başarısız olursa
+  deterministik çoklu sorgular devreye giriyor.
+- Dizin, pazar yeri, sosyal ağ, kamu/okul domainleri ve tekil “en iyi 15...”
+  türü liste yazıları araştırma bütçesi harcanmadan eleniyor.
+- Arama sonucu URL'si artık otomatik olarak şirket kabul edilmiyor. Araştırma
+  resmî siteyi, gerçek şirket adını, varlık türünü ve ticari rolü doğruluyor.
+- OEM/makine üreticisi, sistem entegratörü, son kullanıcı, distribütör ve
+  doğrudan rakip ayrı sınıflar. Ürünü kendi makinesine entegre eden OEM doğal
+  alıcı kabul ediliyor; “aynı sektörde” olmak tek başına rakip sayılmıyor.
+- `totalScore` (ticari uygunluk) ile `evidenceConfidence` (kanıt yeterliliği)
+  ayrıldı. Veri azlığı artık 0 puan/uygunsuzluk yerine `needs_research`
+  durumuna yol açıyor.
+- Sabit URL listesine ek olarak sitedeki Hakkımızda/Ürünler/Uygulamalar/
+  İletişim/Impressum bağlantıları dinamik keşfediliyor; Almanca yollar eklendi.
+- Gönderilebilir e-posta yalnızca doğrulanmış şirket domain'iyle eşleşiyorsa
+  kabul ediliyor. Liste yazarı, ajans veya ücretsiz e-posta adresi lead'e
+  bağlanmıyor.
+- `npm test` altında OEM, listicle/dizin, kanıt yetersizliği ve e-posta domain
+  doğrulaması için regresyon testleri bulunuyor.
+
 ## Bu API anahtarlarını nereden alırım?
 
 - Serper: https://serper.dev (ücretsiz kotayla başlar)

@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { isIP } from "node:net";
 import type { ScrapedPage } from "./prompts";
 import type { ContactEmailCandidate } from "./types";
 
@@ -14,7 +15,7 @@ import type { ContactEmailCandidate } from "./types";
 
 const USER_AGENT = "SalesPilotBot/0.1 (+https://salespilot.example/bot)";
 const FETCH_TIMEOUT_MS = 8000;
-const MAX_PAGES = 6;
+const MAX_PAGES = 8;
 
 // Türkçe ve İngilizce yaygın sayfa yolları - hepsi denenir, bulunanlar kullanılır.
 const CANDIDATE_PATHS = [
@@ -30,7 +31,43 @@ const CANDIDATE_PATHS = [
   "/export",
   "/iletisim",
   "/contact",
+  "/unternehmen",
+  "/ueber-uns",
+  "/uber-uns",
+  "/produkte",
+  "/anwendungen",
+  "/branchen",
+  "/kontakt",
+  "/impressum",
 ];
+
+const RELEVANT_LINK_PATTERN = /(about|company|hakkimizda|hakkımızda|unternehmen|ueber|über|firma|products?|produkte|urunler|ürünler|services?|hizmetler|applications?|anwendungen|industries|branchen|export|ihracat|contact|kontakt|iletisim|iletişim|impressum)/i;
+
+const COMMON_TWO_PART_SUFFIXES = new Set([
+  "com.tr", "com.de", "co.uk", "com.au", "co.nz", "co.jp", "com.br", "com.cn",
+]);
+
+export function registrableDomain(hostname: string): string {
+  const parts = hostname.toLowerCase().replace(/^www\./, "").split(".").filter(Boolean);
+  if (parts.length <= 2) return parts.join(".");
+  const lastTwo = parts.slice(-2).join(".");
+  return COMMON_TWO_PART_SUFFIXES.has(lastTwo) ? parts.slice(-3).join(".") : lastTwo;
+}
+
+export function isSafePublicHostname(domain: string): boolean {
+  const normalized = domain.toLowerCase().replace(/^www\./, "");
+  if (!/^[a-z0-9.-]+$/.test(normalized) || normalized.includes("..")) return false;
+  if (normalized === "localhost" || normalized.endsWith(".localhost") || normalized.endsWith(".local")) return false;
+  if (isIP(normalized)) {
+    return !/^(127\.|10\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(normalized) && normalized !== "::1";
+  }
+  return normalized.includes(".");
+}
+
+export function emailMatchesCompanyDomain(email: string, companyDomain: string): boolean {
+  const emailDomain = email.toLowerCase().split("@")[1] ?? "";
+  return Boolean(emailDomain) && registrableDomain(emailDomain) === registrableDomain(companyDomain);
+}
 
 async function fetchWithTimeout(url: string): Promise<Response | null> {
   const controller = new AbortController();
@@ -164,7 +201,16 @@ export interface ScrapeResult {
 }
 
 export async function scrapeCompanyPages(domain: string): Promise<ScrapeResult> {
-  const baseUrl = `https://${domain}`;
+  if (!isSafePublicHostname(domain)) {
+    throw new Error("Güvenli olmayan veya geçersiz şirket alan adı.");
+  }
+
+  let baseUrl = `https://${domain}`;
+  const httpsProbe = await fetchWithTimeout(baseUrl);
+  if (!httpsProbe || !httpsProbe.ok) {
+    const httpProbe = await fetchWithTimeout(`http://${domain}`);
+    if (httpProbe?.ok) baseUrl = `http://${domain}`;
+  }
 
   const blocked = await isFullyDisallowed(baseUrl);
   if (blocked) {
@@ -175,8 +221,15 @@ export async function scrapeCompanyPages(domain: string): Promise<ScrapeResult> 
   const emailCandidates: ContactEmailCandidate[] = [];
   const seenEmails = new Set<string>();
 
-  for (const path of CANDIDATE_PATHS) {
+  const queuedPaths = [...CANDIDATE_PATHS];
+  const visitedPaths = new Set<string>();
+
+  for (let index = 0; index < queuedPaths.length; index += 1) {
     if (pages.length >= MAX_PAGES) break;
+
+    const path = queuedPaths[index];
+    if (visitedPaths.has(path)) continue;
+    visitedPaths.add(path);
 
     const url = `${baseUrl}${path}`;
     const res = await fetchWithTimeout(url);
@@ -192,9 +245,38 @@ export async function scrapeCompanyPages(domain: string): Promise<ScrapeResult> 
     for (const email of extractEmailsFromHtml(html)) {
       if (!seenEmails.has(email)) {
         seenEmails.add(email);
-        emailCandidates.push({ email, sourceUrl: url, sourcePath: path });
+        const domainMatch = emailMatchesCompanyDomain(email, domain);
+        // Üçüncü taraf ajans, liste yazarı veya ücretsiz e-posta sağlayıcısının
+        // adresi yanlış şirkete bağlanmasın. Gönderilebilir listeye yalnızca
+        // doğrulanmış şirket domain'iyle eşleşen adresler girer.
+        if (domainMatch) {
+          emailCandidates.push({
+            email,
+            sourceUrl: url,
+            sourcePath: path,
+            domainMatch: true,
+            verificationStatus: "domain_verified",
+          });
+        }
       }
     }
+
+    // Sabit yol listesi bütün dillerde çalışmaz. Bulunan sayfalardaki ilgili
+    // şirket içi linkleri keşfedip sınırlı kuyruğa ekliyoruz.
+    const $ = cheerio.load(html);
+    $("a[href]").each((_, element) => {
+      const href = $(element).attr("href");
+      const label = $(element).text();
+      if (!href || !RELEVANT_LINK_PATTERN.test(`${href} ${label}`)) return;
+      try {
+        const resolved = new URL(href, baseUrl);
+        if (registrableDomain(resolved.hostname) !== registrableDomain(domain)) return;
+        const discoveredPath = `${resolved.pathname}${resolved.search}`;
+        if (!visitedPaths.has(discoveredPath) && !queuedPaths.includes(discoveredPath)) {
+          queuedPaths.push(discoveredPath);
+        }
+      } catch { /* bozuk link */ }
+    });
 
     const textContent = extractCleanText(html);
     if (textContent.length < 50) continue; // anlamsız/boş sayfa, araştırma metnine ekleme
