@@ -40,9 +40,9 @@ başlanıldı.
 1. Next.js 16 + TypeScript projesi kuruldu.
 2. `.env.example` ile `SERPER_API_KEY` / `ANTHROPIC_API_KEY` alanları
    tanımlandı (gerçek değerler kullanıcı tarafından girilecek).
-3. `/api/search` endpoint'i yazıldı: kriterlerden birkaç Google araması
-   oluşturuyor, Serper'a gönderiyor, sosyal medya sonuçlarını eliyor,
-   domain bazında tekilleştiriyor.
+3. `/api/search` endpoint'i yazıldı: yerel dilde 14-16 farklı alıcı niyeti
+   sorgusu oluşturuyor, 50 aday hedefi için adaptif sayfalama yapıyor,
+   gürültülü sonuçları eliyor ve domain bazında tekilleştiriyor.
 4. `npm run build` + `npx tsc --noEmit` ile derleme doğrulandı, `npm audit`
    ile 0 güvenlik açığı teyit edildi.
 
@@ -131,8 +131,8 @@ cevap bulabiliyor, listeden şirket seçebiliyor.
 **Bitti sayılır çünkü:** Uçtan uca döngü çalışıyor VE pilot metriğini
 ölçebiliyorsunuz — AI sınıflandırma olmadan, siz elle işaretleyerek.
 
-## Faz 6 — Pilot testi
-- 10 şirket, farklı sektörlerden, ücretsiz deneme.
+## Faz 6 — Gerçek arama testi
+- Farklı sektörlerde, her biri en az 50 aday hedefleyen taramalar.
 - Faz 5'teki sayaçla huniyi ölçün: bulunan → nitelikli → gönderilen →
   cevap → fırsat.
 - Bu veri Mvp2'ye geçiş kararını besleyecek.

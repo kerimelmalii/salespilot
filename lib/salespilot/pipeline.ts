@@ -113,7 +113,12 @@ export async function generateDiscoveryQueries(
     const queries = (parsed.queries ?? [])
       .filter((query): query is string => typeof query === "string" && query.trim().length > 4)
       .map((query) => query.replace(/\s+/g, " ").trim());
-    return queries.length >= 4 ? Array.from(new Set(queries)).slice(0, 8) : fallbackQueries;
+    // Modelin semantik alt sektör sorgularını deterministik resmî-site
+    // sorgularıyla birleştiriyoruz. Böylece model tek bir arama kalıbına
+    // sıkışsa bile keşif çeşitliliği kaybolmuyor.
+    return queries.length >= 8
+      ? Array.from(new Set([...queries, ...fallbackQueries])).slice(0, 16)
+      : fallbackQueries;
   } catch (error) {
     console.error("Yerelleştirilmiş sorgular üretilemedi; deterministik sorgular kullanılıyor.", error);
     return fallbackQueries;

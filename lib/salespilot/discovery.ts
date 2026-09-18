@@ -6,6 +6,7 @@ export interface SearchInputs {
   productOrService: string;
   extraCriteria?: string;
   companyType?: string;
+  targetCount?: number;
 }
 
 export interface LocaleProfile {
@@ -78,6 +79,8 @@ export function buildSearchQueries(input: SearchInputs): string[] {
   const negative = "-inurl:blog -inurl:news -inurl:magazin -inurl:category -inurl:liste";
   const site = locale.siteSuffix ? `site:${locale.siteSuffix}` : "";
 
+  const product = input.productOrService.trim();
+  const companyType = input.companyType?.trim();
   const queries = [
     `\"${sector}\" ${manufacturerTerm} ${region} ${negative}`,
     `\"${sector}\" ${companyTerm} ${region} ${negative}`,
@@ -85,19 +88,31 @@ export function buildSearchQueries(input: SearchInputs): string[] {
     `${sector} ${secondCompanyTerm} ${region} Kontakt Impressum ${negative}`,
     `${sector} ${manufacturerTerm} ${region} ${site} ${negative}`,
     `${sector} B2B ${region} ${site} ${negative}`,
+    `${sector} OEM ${region} ${site} ${negative}`,
+    `${sector} supplier customer company ${region} ${negative}`,
+    `${sector} applications industries ${region} ${site} ${negative}`,
+    `${sector} solutions systems ${region} ${negative}`,
+    `${sector} contact about company ${region} ${site} ${negative}`,
+    `${sector} production engineering ${region} ${site} ${negative}`,
   ];
 
-  if (input.companyType?.trim()) {
-    queries.push(`${sector} ${input.companyType.trim()} ${region} ${site} ${negative}`);
+  if (companyType) {
+    queries.push(
+      `\"${companyType}\" ${sector} ${region} ${site} ${negative}`,
+      `${companyType} ${sector} ${region} contact ${negative}`
+    );
   }
 
   // Ürün sorgusu tek başına satıcıları getirir. Bu yüzden yalnızca hedef sektörle
   // birlikte ve "uygulama/kullanım" bağlamında bir keşif sorgusu olarak kullanılır.
-  if (input.productOrService.trim()) {
-    queries.push(`\"${input.productOrService.trim()}\" ${sector} Anwendung ${region} ${negative}`);
+  if (product) {
+    queries.push(
+      `\"${product}\" ${sector} application ${region} ${negative}`,
+      `${product} ${sector} integration ${region} ${site} ${negative}`
+    );
   }
 
-  return Array.from(new Set(queries.map((q) => q.replace(/\s+/g, " ").trim()))).slice(0, 8);
+  return Array.from(new Set(queries.map((q) => q.replace(/\s+/g, " ").trim()))).slice(0, 16);
 }
 
 export function isBlockedDiscoveryDomain(domain: string): boolean {

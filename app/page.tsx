@@ -80,6 +80,12 @@ export default function Home() {
   const [processing, setProcessing] = useState(false);
   const [rows, setRows] = useState<CompanyRow[]>([]);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchSummary, setSearchSummary] = useState<{
+    targetCount: number;
+    targetReached: boolean;
+    searchRequests: number;
+    rejectedCount: number;
+  } | null>(null);
 
   function buildScanRequest(): ScanRequest {
     return {
@@ -99,17 +105,31 @@ export default function Home() {
     setSearching(true);
     setSearchError(null);
     setRows([]);
+    setSearchSummary(null);
 
     try {
       const res = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetSector, targetRegion, productOrService, extraCriteria, companyType }),
+        body: JSON.stringify({
+          targetSector,
+          targetRegion,
+          productOrService,
+          extraCriteria,
+          companyType,
+          targetCount: 50,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
         setSearchError(data.error ?? "Bilinmeyen hata.");
       } else {
+        setSearchSummary({
+          targetCount: data.targetCount,
+          targetReached: data.targetReached,
+          searchRequests: data.searchRequests,
+          rejectedCount: data.rejectedCount,
+        });
         setRows(
           data.companies.map((c: CompanyCandidate) => ({
             ...c,
@@ -192,12 +212,18 @@ export default function Home() {
       return;
     }
 
-    // Sırayla işliyoruz (paralel değil) - API maliyetini ve hız limitlerini
-    // kontrollü tutmak için. Küçük pilot hacimlerinde bu yeterince hızlı.
-    for (const row of rows) {
-      // eslint-disable-next-line no-await-in-loop
-      await processCompany(row, scanRequest, extraCriteriaRubric);
-    }
+    // 50+ adayda tamamen seri işleme gereksiz yavaş kalır. Üç worker ile
+    // kontrollü paralellik kullanarak API hız limitlerini zorlamadan işleriz.
+    let cursor = 0;
+    const workers = Array.from({ length: Math.min(3, rows.length) }, async () => {
+      while (cursor < rows.length) {
+        const row = rows[cursor];
+        cursor += 1;
+        // eslint-disable-next-line no-await-in-loop
+        await processCompany(row, scanRequest, extraCriteriaRubric);
+      }
+    });
+    await Promise.all(workers);
     setProcessing(false);
   }
 
@@ -283,6 +309,42 @@ export default function Home() {
     // Yeniden render tetiklemek için rows'u da güncelliyoruz (localStorage
     // React state'i değil, bu yüzden isOptedOut() sonucu otomatik yansımaz).
     setRows((prev) => [...prev]);
+  }
+
+  function handleExportResults() {
+    const completed = rows.filter((row) => row.status === "done" && row.research && row.score);
+    const payload = {
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      scanRequest: buildScanRequest(),
+      summary: {
+        discovered: rows.length,
+        completed: completed.length,
+        qualified: completed.filter((row) => row.score?.reviewStatus === "qualified").length,
+        needsResearch: completed.filter((row) => row.score?.reviewStatus === "needs_research").length,
+        disqualified: completed.filter((row) => row.score?.reviewStatus === "disqualified").length,
+      },
+      results: completed.map((row) => ({
+        domain: row.domain,
+        discovery: {
+          title: row.title,
+          url: row.url,
+          confidence: row.discoveryConfidence,
+          foundVia: row.foundVia,
+        },
+        research: row.research,
+        score: row.score,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `salespilot-results-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -399,14 +461,34 @@ export default function Home() {
       {rows.length > 0 && (
         <div className="mt-8">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-neutral-500">{rows.length} şirket bulundu.</p>
-            <button
-              onClick={handleProcessAll}
-              disabled={processing}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-50"
-            >
-              {processing ? "İşleniyor..." : "Tümünü Araştır ve Puanla"}
-            </button>
+            <div>
+              <p className="text-sm text-neutral-500">{rows.length} şirket adayı bulundu.</p>
+              {searchSummary && (
+                <p className={`mt-1 text-xs ${searchSummary.targetReached ? "text-emerald-700" : "text-amber-700"}`}>
+                  {searchSummary.targetReached
+                    ? `En az ${searchSummary.targetCount} aday hedefi karşılandı.`
+                    : `Dar sonuç kümesinde ${searchSummary.targetCount} hedefine ulaşılamadı; sahte aday eklenmedi.`}
+                  {` ${searchSummary.searchRequests} arama isteği · ${searchSummary.rejectedCount} gürültülü sonuç elendi.`}
+                </p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              {rows.some((row) => row.status === "done") && (
+                <button
+                  onClick={handleExportResults}
+                  className="rounded-md border border-neutral-300 px-4 py-2 text-sm text-neutral-700"
+                >
+                  Sonuçları indir
+                </button>
+              )}
+              <button
+                onClick={handleProcessAll}
+                disabled={processing}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-50"
+              >
+                {processing ? "İşleniyor..." : "Tümünü Araştır ve Puanla"}
+              </button>
+            </div>
           </div>
 
           <ul className="mt-4 divide-y divide-neutral-200 rounded-md border border-neutral-200">

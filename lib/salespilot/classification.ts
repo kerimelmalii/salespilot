@@ -15,8 +15,8 @@ const INVALID_ENTITY_TYPES: EntityType[] = [
   "directory", "marketplace", "publisher", "public_institution",
 ];
 
-function clampCriterion(score: CriterionScore): CriterionScore {
-  const maxPoints = Math.max(0, Number(score.maxPoints) || 0);
+function clampCriterion(score: CriterionScore, requiredMax?: number): CriterionScore {
+  const maxPoints = requiredMax ?? Math.max(0, Number(score.maxPoints) || 0);
   const awardedPoints = Math.min(maxPoints, Math.max(0, Number(score.awardedPoints) || 0));
   return { ...score, maxPoints, awardedPoints };
 }
@@ -41,10 +41,11 @@ export function finalizeLeadScore(
 ): ScoreBreakdown {
   const parsed: ModelScore = {
     ...modelScore,
-    sectorFit: clampCriterion(modelScore.sectorFit),
-    regionFit: clampCriterion(modelScore.regionFit),
-    productFit: clampCriterion(modelScore.productFit),
-    extraCriteria: (modelScore.extraCriteria ?? []).map(clampCriterion),
+    // Çekirdek ağırlıkları modelin değiştirmesine izin vermeyiz.
+    sectorFit: clampCriterion(modelScore.sectorFit, 30),
+    regionFit: clampCriterion(modelScore.regionFit, 15),
+    productFit: clampCriterion(modelScore.productFit, 25),
+    extraCriteria: (modelScore.extraCriteria ?? []).map((score) => clampCriterion(score)),
   };
 
   const invalidEntity = INVALID_ENTITY_TYPES.includes(research.entityType) || research.officialWebsite === "no";
@@ -72,11 +73,21 @@ export function finalizeLeadScore(
     parsed.productFit.awardedPoints = Math.min(parsed.productFit.awardedPoints, 5);
   }
 
-  const totalScore =
+  const rawScore =
     parsed.sectorFit.awardedPoints +
     parsed.regionFit.awardedPoints +
     parsed.productFit.awardedPoints +
     parsed.extraCriteria.reduce((sum, criterion) => sum + criterion.awardedPoints, 0);
+  const availablePoints =
+    parsed.sectorFit.maxPoints +
+    parsed.regionFit.maxPoints +
+    parsed.productFit.maxPoints +
+    parsed.extraCriteria.reduce((sum, criterion) => sum + criterion.maxPoints, 0);
+  // Ek kriter yoksa çekirdek cetvel 70 puandır. Kullanılan cetvelin gerçek
+  // maksimumunu 100'e normalize ederek varsayılan 75 eşiğini anlamlı tutarız.
+  const totalScore = availablePoints > 0
+    ? Math.round((rawScore / availablePoints) * 100)
+    : 0;
   const evidenceConfidence = calculateEvidenceConfidence(research);
   const reviewStatus = !parsed.isPlausibleLead
     ? "disqualified"

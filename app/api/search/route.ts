@@ -25,21 +25,55 @@ interface RawCandidate {
   foundVia: string[];
 }
 
+export const maxDuration = 60;
+
+const DEFAULT_TARGET_COUNT = 50;
+const MAX_TARGET_COUNT = 100;
+const SEARCH_PAGE_SIZE = 20;
+const MAX_SEARCH_PAGES = 2;
+const SEARCH_CONCURRENCY = 4;
+
+function clampTargetCount(value: unknown): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return DEFAULT_TARGET_COUNT;
+  return Math.min(MAX_TARGET_COUNT, Math.max(10, Math.round(parsed)));
+}
+
 async function searchOneQuery(
   query: string,
   apiKey: string,
-  locale: { gl: string; hl: string }
+  locale: { gl: string; hl: string },
+  page: number
 ): Promise<SerperOrganicResult[]> {
   const response = await fetch("https://google.serper.dev/search", {
     method: "POST",
     headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify({ q: query, gl: locale.gl, hl: locale.hl, num: 20 }),
+    body: JSON.stringify({
+      q: query,
+      gl: locale.gl,
+      hl: locale.hl,
+      num: SEARCH_PAGE_SIZE,
+      page,
+    }),
   });
   if (!response.ok) {
     throw new Error(`Serper API hatası: ${response.status} ${response.statusText}`);
   }
   const data = await response.json();
   return (data.organic ?? []) as SerperOrganicResult[];
+}
+
+function acceptedCandidateCount(rawByDomain: Map<string, RawCandidate>): number {
+  let count = 0;
+  for (const raw of rawByDomain.values()) {
+    if (assessOrganicResult({
+      title: raw.title,
+      url: raw.url,
+      domain: raw.domain,
+      occurrenceCount: raw.foundVia.length,
+    }).accepted) count += 1;
+  }
+  return count;
 }
 
 export async function POST(req: NextRequest) {
@@ -62,6 +96,10 @@ export async function POST(req: NextRequest) {
   }
 
   const locale = resolveSearchLocale(body.targetRegion);
+  const targetCount = clampTargetCount(body.targetCount);
+  // Araştırma aşamasında elenecek adaylara karşı %40 güvenlik payı toplarız.
+  // Dar pazarlarda sahte şirket eklemek yerine gerçek bulunan sayıyı döndürürüz.
+  const discoveryPoolTarget = Math.min(MAX_TARGET_COUNT, Math.ceil(targetCount * 1.4));
   const fallbackQueries = buildSearchQueries(body);
   const queries = await generateDiscoveryQueries(
     body,
@@ -70,13 +108,7 @@ export async function POST(req: NextRequest) {
   );
   const rawByDomain = new Map<string, RawCandidate>();
 
-  // Sorgular hedef ülkenin Google pazarı ve diliyle çalışır. Türkçe arayüz
-  // kullanmak artık tüm aramaları Türkiye sonuçlarına kilitlemez.
-  for (const query of queries) {
-    let results: SerperOrganicResult[] = [];
-    try { results = await searchOneQuery(query, apiKey, locale); }
-    catch (err) { console.error(`Arama sorgusu başarısız: "${query}"`, err); continue; }
-
+  function ingest(query: string, results: SerperOrganicResult[]) {
     for (const result of results) {
       if (!result.link) continue;
       const domain = normalizeDomain(result.link);
@@ -101,6 +133,27 @@ export async function POST(req: NextRequest) {
           foundVia: [query],
         });
       }
+    }
+  }
+
+  // Adaptif keşif: farklı niyetli sorguların ilk sayfalarını tarar; kaliteli
+  // havuz hedefin altında kalırsa aynı sorguların sonraki sayfalarına geçer.
+  // Dörderli gruplar hız ile Serper yükü arasında kontrollü denge kurar.
+  let pagesSearched = 0;
+  outer: for (let page = 1; page <= MAX_SEARCH_PAGES; page += 1) {
+    for (let start = 0; start < queries.length; start += SEARCH_CONCURRENCY) {
+      const batch = queries.slice(start, start + SEARCH_CONCURRENCY);
+      const batchResults = await Promise.all(batch.map(async (query) => {
+        try {
+          return { query, results: await searchOneQuery(query, apiKey, locale, page) };
+        } catch (err) {
+          console.error(`Arama sorgusu başarısız: "${query}" (sayfa ${page})`, err);
+          return { query, results: [] as SerperOrganicResult[] };
+        }
+      }));
+      batchResults.forEach(({ query, results }) => ingest(query, results));
+      pagesSearched += batch.length;
+      if (acceptedCandidateCount(rawByDomain) >= discoveryPoolTarget) break outer;
     }
   }
 
@@ -130,11 +183,18 @@ export async function POST(req: NextRequest) {
     return confidence || b.foundVia.length - a.foundVia.length;
   });
 
+  const limitedCompanies = companies.slice(0, discoveryPoolTarget);
+
   return NextResponse.json({
     queries,
     searchLocale: { gl: locale.gl, hl: locale.hl, region: locale.nativeRegion },
-    totalFound: companies.length,
+    targetCount,
+    discoveryPoolTarget,
+    targetReached: limitedCompanies.length >= targetCount,
+    totalFound: limitedCompanies.length,
+    totalUniqueDomains: rawByDomain.size,
+    searchRequests: pagesSearched,
     rejectedCount: rejected.length,
-    companies,
+    companies: limitedCompanies,
   });
 }

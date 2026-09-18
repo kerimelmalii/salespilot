@@ -57,7 +57,7 @@ describe("aday keşfi", () => {
   it("Almanya için aramayı de/de yereline taşır", () => {
     expect(resolveSearchLocale("Almanya")).toMatchObject({ gl: "de", hl: "de", nativeRegion: "Deutschland" });
     const queries = buildSearchQueries(scanRequest);
-    expect(queries.length).toBeGreaterThanOrEqual(6);
+    expect(queries.length).toBeGreaterThanOrEqual(12);
     expect(queries.some((query) => query.includes("Hersteller"))).toBe(true);
     expect(queries.some((query) => query.includes("site:.de"))).toBe(true);
   });
@@ -91,6 +91,35 @@ describe("ticari rol ve güven", () => {
     const result = finalizeLeadScore({ ...modelScore, isPlausibleLead: true }, sparse, scanRequest);
     expect(result.reviewStatus).toBe("needs_research");
     expect(result.isPlausibleLead).toBe(true);
+  });
+
+  it("ek kriter yokken çekirdek puanı 100 üzerinden normalize eder", () => {
+    const noExtras = { ...scanRequest, extraCriteria: "" };
+    const strongCoreScore: ModelScore = {
+      ...modelScore,
+      isPlausibleLead: true,
+      sectorFit: criterion("Sektör uyumu", 30, 27),
+      regionFit: criterion("Bölge uyumu", 15, 15),
+      productFit: criterion("Ürün uyumu", 25, 23),
+      extraCriteria: [],
+    };
+    const result = finalizeLeadScore(strongCoreScore, baseResearch, noExtras);
+    expect(result.totalScore).toBe(93);
+    expect(result.reviewStatus).toBe("qualified");
+  });
+
+  it("model çekirdek kriter ağırlıklarını değiştiremez", () => {
+    const manipulated: ModelScore = {
+      ...modelScore,
+      sectorFit: criterion("Sektör uyumu", 999, 999),
+      regionFit: criterion("Bölge uyumu", 999, 999),
+      productFit: criterion("Ürün uyumu", 999, 999),
+    };
+    const result = finalizeLeadScore(manipulated, baseResearch, scanRequest);
+    expect(result.sectorFit.maxPoints).toBe(30);
+    expect(result.regionFit.maxPoints).toBe(15);
+    expect(result.productFit.maxPoints).toBe(25);
+    expect(result.totalScore).toBeLessThanOrEqual(100);
   });
 
   it("yayın ve dizinleri puanları yüksek olsa bile diskalifiye eder", () => {

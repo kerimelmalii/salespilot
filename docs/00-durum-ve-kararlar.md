@@ -1,6 +1,19 @@
 # SalesPilot — Durum ve Kararlar
 
-_Son güncelleme: 17 Eylül 2026_
+_Son güncelleme: 18 Eylül 2026_
+
+## 18 Eylül 2026 — Keşif kalitesi kararı
+- Sabit 10 şirketlik pilot yaklaşımı kaldırıldı.
+- Her taramada varsayılan hedef en az 50 şirket adayıdır. Doğrulama
+  kayıpları için keşif katmanı 70 adaylık bir güvenlik havuzu toplamaya
+  çalışır.
+- Sistem 14-16 farklı yerel dil sorgusuyla OEM, entegratör, son kullanıcı,
+  alt sektör ve kullanım senaryolarını tarar; hedefe ulaşamazsa sonraki
+  sonuç sayfalarına adaptif olarak genişler, hedefe ulaşınca durur.
+- Dar bir pazarda 50 gerçek aday yoksa sayı sahte veya ilgisiz şirketlerle
+  tamamlanmaz; eksik açıkça gösterilir.
+- Ek kriter girilmediğinde 70 puanlık çekirdek cetvel 100'e normalize edilir.
+  Böylece varsayılan 75 eşiği her taramada karşılaştırılabilir kalır.
 
 ## Proje özeti
 Bir işletmenin ürün/hizmetini kime satabileceğini internetten otomatik
@@ -58,8 +71,8 @@ kişiselleştirilmiş mesaj hazırla → kullanıcı onaylarsa gönder.**
   yüzden erken kuruluyor.
 
 ### Mvp1 → Mvp2 arası: Pilot 1
-- 10 pilot şirket, ücretsiz deneme, farklı sektörlerden seçilecek (tek
-  sektörde kanıtlanmış olmak yetmiyor, genellenebilirlik test edilmeli).
+- Her taramada en az 50 aday hedefleyen gerçek aramalar, farklı sektörlerle
+  denenecek (tek sektörde kanıtlanmış olmak yetmiyor).
 - Ölçülecek huni: bulunan → nitelikli → onaylanan → gönderilen → cevap →
   gerçek fırsat. Bu huni her pilot turunda AYNI şekilde ölçülecek, böylece
   Mvp1→Mvp2 karşılaştırılabilir olacak.
@@ -172,6 +185,6 @@ kişiselleştirilmiş mesaj hazırla → kullanıcı onaylarsa gönder.**
    Faz 0 (Next.js + Serper kurulumu) dahil, artık atlanacak bir adım değil.
 2. Bu iş için Claude Code'a taşınması öneriliyor (sürekli geliştirme/deploy
    için bu sohbetten daha uygun bir ortam).
-3. Mvp1 hazır olunca 10 pilot şirket (farklı sektörlerden) seçilecek.
+3. Mvp1 hazır olunca farklı sektörlerde 50+ adaylık taramalar ölçülecek.
 4. Pazarlama/tasarım/satış planlaması için bu projede ayrı sohbetler
    açılacak.

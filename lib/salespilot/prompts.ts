@@ -71,25 +71,32 @@ Hedef sektör: ${input.targetSector}
 Hedef bölge: ${input.targetRegion} (yerel yazımı: ${locale.nativeRegion})
 Satılan ürün/hizmet: ${input.productOrService}
 Hedef şirket türü: ${input.companyType || "belirtilmedi"}
+Ek hedef ölçütler: ${input.extraCriteria || "belirtilmedi"}
 Arama dili: ${locale.language}
 Ülke domain eki: ${locale.siteSuffix || "belirtilmedi"}
 
 Kurallar:
-- Tam olarak 6 sorgu üret ve bütün sektör/rol terimlerini ${locale.language}
+- Tam olarak 14 sorgu üret ve bütün sektör/rol terimlerini ${locale.language}
   diline çevir. Türkçe terimleri çevirmeden bırakma.
 - Amaç ürünü SATAN siteleri değil, ürünü satın alabilecek resmî şirket
   sitelerini bulmak. OEM üreticiler, makine üreticileri, sistem entegratörleri
   ve uygun son kullanıcıları hedefle.
-- En az iki sorguda şirket/üretici + Kontakt/Impressum/About benzeri resmî
+- Önce ürünün hangi şirketlerin ürününde girdi/bileşen, hangi şirketlerin
+  operasyonunda ihtiyaç olduğunu düşün; sorguları bu satın alma nedenlerine
+  göre kur. Ürünün kendi satıcılarını hedefleme.
+- Sorguları farklı alıcı alt segmentlerine böl: OEM/üretici, sistem
+  entegratörü, uygun son kullanıcı, belirtilmişse şirket türü ve sektörün
+  doğal alt dalları. Aynı sorgunun küçük kelime değişikliklerini üretme.
+- En az dört sorguda şirket/üretici + Kontakt/Impressum/About benzeri resmî
   şirket sayfası niyeti kullan.
-- En az iki sorguda ülke domain eki varsa site: operatörü kullan.
+- En az dört sorguda ülke domain eki varsa site: operatörü kullan.
 - Blog, haber, liste, rehber ve pazar yeri sonuçlarını azaltmak için negatif
   inurl operatörleri ekle.
 - Sorgular kısa olsun; açıklama yazma.
 
 ${JSON_ONLY_RULE}
 
-JSON şeması: { "queries": ["...", "...", "...", "...", "...", "..."] }
+JSON şeması: { "queries": ["14 farklı sorgu"] }
 `.trim();
 }
 
@@ -111,6 +118,8 @@ Sen bir B2B satış araştırma asistanısın. Aşağıda "${companyName}" (${do
 Kullanıcının sattığı ürün/hizmet: ${scanRequest.productOrService}
 Hedef sektör: ${scanRequest.targetSector}
 Hedef bölge: ${scanRequest.targetRegion}
+Hedef şirket türü: ${scanRequest.companyType || "belirtilmedi"}
+Ek hedef ölçütler: ${scanRequest.extraCriteria || "belirtilmedi"}
 
 ${NO_HALUCINATION_RULE}
 
@@ -293,6 +302,16 @@ normal puanlamaya bırak.
 usesOfferingInProductsOrOperations=yes ise, sırf ürettiği makinenin içinde
 kullanıcının ürünü bulunduğu için RAKİP deme. Bu şirket tipik olarak parçayı
 satın alıp kendi çözümüne entegre eden potansiyel müşteridir.
+
+PUAN KALİBRASYONU:
+- Doğrulanmış faaliyet alanı hedef sektörle doğrudan örtüşüyorsa sektör
+  uyumunu 24-30 aralığında değerlendir.
+- Doğrulanmış adres veya faaliyet hedef bölgedeyse bölge uyumunu 12-15
+  aralığında değerlendir.
+- Ürünü kendi ürünü, üretim hattı veya operasyonunda kullanmasına ilişkin
+  doğrudan kanıt varsa ürün uyumunu 20-25 aralığında değerlendir.
+- Yalnızca genel sektör benzerliği varsa yüksek puan verme. Yüksek puan,
+  güçlü ve kanıtlı eşleşmenin sonucu olmalı; hedef sayı değildir.
 
 isPlausibleLead: false olduğunda, sectorFit ve productFit puanlarını da
 buna uygun şekilde DÜŞÜK ver (0-5 aralığı) - yüzeysel anahtar kelime
