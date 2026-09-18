@@ -6,7 +6,9 @@ import type {
   ScoreBreakdown,
   ScanRequest,
   ExtraCriterion,
+  EmailDraft,
 } from "@/lib/salespilot/types";
+import { isOptedOut, markOptedOut } from "@/lib/opt-out";
 
 interface CompanyCandidate {
   domain: string;
@@ -17,12 +19,16 @@ interface CompanyCandidate {
 }
 
 type RowStatus = "idle" | "researching" | "scoring" | "done" | "error";
+type EmailStatus = "idle" | "drafting" | "ready" | "approved" | "error";
 
 interface CompanyRow extends CompanyCandidate {
   status: RowStatus;
   research?: CompanyResearch;
   score?: ScoreBreakdown;
   errorMessage?: string;
+  emailStatus: EmailStatus;
+  emailDraft?: EmailDraft;
+  emailError?: string;
 }
 
 /**
@@ -73,7 +79,11 @@ export default function Home() {
         setSearchError(data.error ?? "Bilinmeyen hata.");
       } else {
         setRows(
-          data.companies.map((c: CompanyCandidate) => ({ ...c, status: "idle" as RowStatus }))
+          data.companies.map((c: CompanyCandidate) => ({
+            ...c,
+            status: "idle" as RowStatus,
+            emailStatus: "idle" as EmailStatus,
+          }))
         );
       }
     } catch (err) {
@@ -157,6 +167,50 @@ export default function Home() {
       await processCompany(row, scanRequest, extraCriteriaRubric);
     }
     setProcessing(false);
+  }
+
+  async function handleDraftEmail(row: CompanyRow) {
+    if (!row.research) return;
+    updateRow(row.domain, { emailStatus: "drafting", emailError: undefined });
+
+    try {
+      const res = await fetch("/api/draft-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ research: row.research, scanRequest: buildScanRequest() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Mail taslağı hatası");
+      updateRow(row.domain, { emailStatus: "ready", emailDraft: data.draft });
+    } catch (err) {
+      updateRow(row.domain, {
+        emailStatus: "error",
+        emailError: err instanceof Error ? err.message : "Bilinmeyen hata",
+      });
+    }
+  }
+
+  function handleEditDraft(row: CompanyRow, patch: Partial<EmailDraft>) {
+    if (!row.emailDraft) return;
+    updateRow(row.domain, { emailDraft: { ...row.emailDraft, ...patch } });
+  }
+
+  function handleApprove(row: CompanyRow) {
+    if (!row.emailDraft) return;
+    // NOT: Bu sadece "onaylandı" olarak işaretliyor, GERÇEKTEN GÖNDERMİYOR.
+    // Gerçek gönderim (Gmail/kurumsal hesap entegrasyonu) Faz 5'te ekleniyor.
+    updateRow(row.domain, {
+      emailStatus: "approved",
+      emailDraft: { ...row.emailDraft, approvedAt: new Date().toISOString() },
+    });
+  }
+
+  function handleOptOut(row: CompanyRow) {
+    markOptedOut(row.domain);
+    updateRow(row.domain, { emailStatus: "idle", emailDraft: undefined });
+    // Yeniden render tetiklemek için rows'u da güncelliyoruz (localStorage
+    // React state'i değil, bu yüzden isOptedOut() sonucu otomatik yansımaz).
+    setRows((prev) => [...prev]);
   }
 
   return (
@@ -358,6 +412,109 @@ export default function Home() {
                       ))}
                     </ul>
                   </details>
+                )}
+
+                {/* Faz 4: Mail oluşturma + onay - sadece nitelikli lead'ler için */}
+                {row.status === "done" && row.score?.qualified && isOptedOut(row.domain) && (
+                  <p className="mt-3 rounded-md bg-neutral-100 px-3 py-2 text-xs text-neutral-600">
+                    🚫 Bu şirket iletişimi durdurmuş (ret etti). Mail taslağı oluşturulamaz.
+                  </p>
+                )}
+
+                {row.status === "done" && row.score?.qualified && !isOptedOut(row.domain) && (
+                  <div className="mt-3 rounded-md border border-neutral-200 p-3">
+                    {row.emailStatus === "idle" && (
+                      <button
+                        onClick={() => handleDraftEmail(row)}
+                        disabled={row.research!.contactEmails.length === 0}
+                        className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm text-white disabled:opacity-40"
+                        title={
+                          row.research!.contactEmails.length === 0
+                            ? "E-posta adresi bulunamadığı için taslak oluşturulamıyor"
+                            : undefined
+                        }
+                      >
+                        ✉ E-posta Oluştur
+                      </button>
+                    )}
+
+                    {row.emailStatus === "drafting" && (
+                      <p className="text-sm text-blue-500">Taslak hazırlanıyor...</p>
+                    )}
+
+                    {row.emailStatus === "error" && (
+                      <div>
+                        <p className="text-sm text-red-600">{row.emailError}</p>
+                        <button
+                          onClick={() => handleDraftEmail(row)}
+                          className="mt-2 text-sm text-blue-600 hover:underline"
+                        >
+                          Tekrar dene
+                        </button>
+                      </div>
+                    )}
+
+                    {(row.emailStatus === "ready" || row.emailStatus === "approved") &&
+                      row.emailDraft && (
+                        <div className="space-y-2">
+                          <div>
+                            <label className="block text-xs font-medium text-neutral-500">
+                              Alıcı
+                            </label>
+                            <p className="text-sm">{row.research!.contactEmails[0]?.email}</p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-neutral-500">
+                              Konu
+                            </label>
+                            <input
+                              className="mt-1 w-full rounded-md border border-neutral-300 px-2 py-1 text-sm"
+                              value={row.emailDraft.subject}
+                              onChange={(e) =>
+                                handleEditDraft(row, { subject: e.target.value })
+                              }
+                              disabled={row.emailStatus === "approved"}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-neutral-500">
+                              Mail
+                            </label>
+                            <textarea
+                              className="mt-1 w-full rounded-md border border-neutral-300 px-2 py-1 text-sm"
+                              rows={6}
+                              value={row.emailDraft.body}
+                              onChange={(e) => handleEditDraft(row, { body: e.target.value })}
+                              disabled={row.emailStatus === "approved"}
+                            />
+                          </div>
+
+                          {row.emailStatus === "ready" && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleApprove(row)}
+                                className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm text-white"
+                              >
+                                Onayla
+                              </button>
+                              <button
+                                onClick={() => handleOptOut(row)}
+                                className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600"
+                              >
+                                Ret Etti / İletişimi Durdur
+                              </button>
+                            </div>
+                          )}
+
+                          {row.emailStatus === "approved" && (
+                            <p className="rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                              ✓ Onaylandı ({new Date(row.emailDraft.approvedAt!).toLocaleString("tr-TR")}).
+                              Gerçek gönderim Faz 5&apos;te eklenecek - şu an sadece hazır ve onaylı.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                  </div>
                 )}
               </li>
             ))}
