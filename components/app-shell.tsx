@@ -32,7 +32,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const nav = (items: typeof navigation) => items.map(({ href, label, icon: Icon }) => {
     const active = pathname === href;
     return (
-      <Link key={href} href={href} className={`sidebar-nav-link flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition ${active ? "bg-blue-50 text-blue-900" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`}>
+      <Link key={href} href={href} className={`sidebar-nav-link ${active ? "sidebar-nav-link-active" : ""}`}>
         <Icon className="h-4 w-4" strokeWidth={active ? 2.2 : 1.8} />{label}
       </Link>
     );
@@ -44,16 +44,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const sidebar = (
-    <div className="flex h-full flex-col bg-white">
-      <div className="flex h-20 items-center px-5">
-        <Link href="/panel" className="flex items-center gap-3 font-semibold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-950 text-xs text-white">SP</span>SalesPilot</Link>
+    <div className="sidebar-shell">
+      <div className="sidebar-brand">
+        <Link href="/panel" className="flex items-center gap-3 font-semibold tracking-tight"><span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-950 text-xs text-white shadow-sm shadow-blue-950/20">SP</span><span>SalesPilot</span></Link>
       </div>
-      <div className="px-3"><Link href="/panel/yeni-arama" className="uniform-action-button flex items-center justify-center gap-2 bg-blue-950 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-950/10 transition hover:-translate-y-0.5"><Sparkles className="h-4 w-4" />Yeni tarama başlat</Link></div>
-      <nav className="mt-6 space-y-1 px-3">{nav(navigation)}</nav>
-      <div className="mt-auto border-t border-slate-100 p-3">
-        <nav className="space-y-1">{nav(accountNavigation)}</nav>
-        <button type="button" onClick={logout} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-red-50 hover:text-red-700"><LogOut className="h-4 w-4"/>Çıkış yap</button>
-        <Link href="/panel/profil" className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200 p-3 hover:bg-slate-50">
+      <Link href="/panel/yeni-arama" className="uniform-action-button sidebar-primary-action"><Sparkles className="h-4 w-4" />Yeni tarama başlat</Link>
+
+      <div className="sidebar-section">
+        <p className="sidebar-section-label">Çalışma alanı</p>
+        <nav className="sidebar-nav-list">{nav(navigation)}</nav>
+      </div>
+
+      <div className="sidebar-footer">
+        <div className="sidebar-section sidebar-account-section">
+          <p className="sidebar-section-label">Hesap</p>
+          <nav className="sidebar-nav-list">{nav(accountNavigation)}</nav>
+          <button type="button" onClick={logout} className="sidebar-nav-link sidebar-logout"><LogOut className="h-4 w-4"/>Çıkış yap</button>
+        </div>
+        <Link href="/panel/profil" className="sidebar-profile-card">
           <span className="grid h-9 w-9 place-items-center rounded-full bg-blue-100 text-xs font-semibold text-blue-800">{profileName.split(" ").slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</span>
           <span className="min-w-0"><span className="block truncate text-sm font-semibold text-slate-800">{profileName}</span><span className="block text-xs text-slate-400">Pilot çalışma alanı</span></span>
         </Link>
@@ -63,7 +71,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[#f7f9fd] text-slate-950">
-      <aside className="app-sidebar-desktop fixed inset-y-0 left-0 z-30 border-r border-slate-200">{sidebar}</aside>
+      <aside className="app-sidebar-desktop fixed inset-y-0 left-0 z-30">{sidebar}</aside>
       <div className="app-main-content">
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200/80 bg-[#f7f9fd]/90 px-5 backdrop-blur lg:px-8">
           <p className="text-xs font-medium text-slate-400">Alıcı zekâsı çalışma alanı</p>
