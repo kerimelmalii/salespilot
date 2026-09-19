@@ -128,7 +128,13 @@ html {
 
 .app-sidebar-desktop {
   display: block;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
   width: 17.5rem;
+  overflow-y: auto;
   border-right: 1px solid #e2e8f0;
   background: #fff;
 }

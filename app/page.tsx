@@ -902,10 +902,21 @@ export default function Home() {
       </section>
 
       <section id="nasil-calisir" className="border-y border-blue-950/10 bg-white py-20">
-        <div className="mx-auto max-w-7xl px-5 lg:px-8">
-          <p className="text-xs font-semibold uppercase tracking-[.2em] text-blue-700">Nasıl çalışır?</p>
-          <div className="mt-4 grid gap-10 md:grid-cols-[.8fr_1.2fr]"><h2 className="text-3xl font-semibold tracking-[-.035em] sm:text-4xl">Aramadan karara,<br/>tek bir akış.</h2><p className="max-w-xl leading-7 text-slate-500">Klasik listeler şirket adı verir. SalesPilot ise o şirketin gerçekten alıcı olup olmadığını açıklayan bir karar zemini oluşturur.</p></div>
-          <div className="mt-14 grid gap-5 md:grid-cols-3">{proofItems.map(([number, title, text]) => <article key={number} className="rounded-2xl border border-slate-200 bg-[#f8faff] p-6"><span className="text-xs font-semibold text-blue-700">{number}</span><h3 className="mt-10 text-xl font-semibold">{title}</h3><p className="mt-3 text-sm leading-6 text-slate-500">{text}</p></article>)}</div>
+        <div className="mx-auto grid max-w-7xl gap-12 px-5 lg:grid-cols-[.72fr_1.28fr] lg:items-start lg:gap-20 lg:px-8">
+          <div className="lg:sticky lg:top-28">
+            <p className="text-xs font-semibold uppercase tracking-[.2em] text-blue-700">Nasıl çalışır?</p>
+            <h2 className="mt-4 text-3xl font-semibold tracking-[-.035em] sm:text-4xl">Aramadan karara,<br/>tek bir akış.</h2>
+            <p className="mt-6 max-w-md leading-7 text-slate-500">Klasik listeler şirket adı verir. SalesPilot ise o şirketin gerçekten alıcı olup olmadığını açıklayan bir karar zemini oluşturur.</p>
+          </div>
+          <div className="divide-y divide-slate-200 border-y border-slate-200">
+            {proofItems.map(([number, title, text]) => (
+              <article key={number} className="grid gap-4 py-7 sm:grid-cols-[3rem_10rem_1fr] sm:items-start sm:gap-5">
+                <span className="text-xs font-semibold tracking-[.12em] text-blue-700">{number}</span>
+                <h3 className="text-lg font-semibold tracking-tight text-slate-900">{title}</h3>
+                <p className="text-sm leading-6 text-slate-500">{text}</p>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 
