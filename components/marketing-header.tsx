@@ -26,7 +26,7 @@ export function MarketingHeader() {
           SalesPilot
         </Link>
 
-        <nav aria-label="Ana menü" className="marketing-desktop-nav items-center gap-8 whitespace-nowrap text-sm font-medium text-slate-600">
+        <nav aria-label="Ana menü" className="marketing-desktop-nav whitespace-nowrap text-sm font-medium text-slate-600">
           {links.map((link) => (
             <Link key={link.href} href={link.href} className="transition-colors hover:text-blue-600">
               {link.label}
@@ -35,10 +35,10 @@ export function MarketingHeader() {
         </nav>
 
         <div className="marketing-desktop-actions items-center justify-end gap-2">
-          <Link href="/giris?next=/panel" className="rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950">
+          <Link href="/giris?next=/panel" className="marketing-login-button text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950">
             Giriş yap
           </Link>
-          <Link href="/kayit?plan=demo" className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/15 transition-colors hover:bg-blue-700">
+          <Link href="/kayit?plan=demo" className="marketing-cta-button bg-blue-600 text-sm font-semibold text-white shadow-lg shadow-blue-600/15 transition-colors hover:bg-blue-700">
             Ücretsiz başla
           </Link>
         </div>

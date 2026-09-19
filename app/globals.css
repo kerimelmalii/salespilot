@@ -113,6 +113,17 @@ html {
   display: inline-flex;
 }
 
+.marketing-login-button,
+.marketing-cta-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1.25rem;
+  border-radius: 999px;
+  line-height: 1;
+}
+
 .app-sidebar-desktop,
 .app-desktop-only {
   display: none;
@@ -133,6 +144,8 @@ html {
   }
 
   .marketing-desktop-nav {
+    align-items: center;
+    gap: 2.5rem;
     justify-self: center;
   }
 
