@@ -79,14 +79,17 @@ Kurallar:
 - Tam olarak 14 sorgu üret ve bütün sektör/rol terimlerini ${locale.language}
   diline çevir. Türkçe terimleri çevirmeden bırakma.
 - Amaç ürünü SATAN siteleri değil, ürünü satın alabilecek resmî şirket
-  sitelerini bulmak. OEM üreticiler, makine üreticileri, sistem entegratörleri
-  ve uygun son kullanıcıları hedefle.
+  sitelerini bulmak. Hedef şirket türünde açıkça hariç tutulan rolleri
+  (ör. makine üreticisi, distribütör, bayi, danışman) ASLA sorguya dahil etme.
 - Önce ürünün hangi şirketlerin ürününde girdi/bileşen, hangi şirketlerin
   operasyonunda ihtiyaç olduğunu düşün; sorguları bu satın alma nedenlerine
   göre kur. Ürünün kendi satıcılarını hedefleme.
-- Sorguları farklı alıcı alt segmentlerine böl: OEM/üretici, sistem
-  entegratörü, uygun son kullanıcı, belirtilmişse şirket türü ve sektörün
-  doğal alt dalları. Aynı sorgunun küçük kelime değişikliklerini üretme.
+- Sorguları hedef sektörün doğal ALÜCÜ alt segmentlerine böl. Örneğin gıda
+  üretiminde süt ürünleri, içecek, şekerleme, unlu mamuller ve hazır gıda
+  üreticilerini ayrı ayrı ara. Aynı sorgunun küçük kelime değişikliklerini üretme.
+- Satılan ürün/hizmet ifadesini sorguya aynen yazma. Bu, ürün satıcılarını ve
+  rakipleri getirir. Bunun yerine alıcıların kendi sektör, fabrika, üretim,
+  marka ve ürün grubu terimlerini kullan.
 - En az dört sorguda şirket/üretici + Kontakt/Impressum/About benzeri resmî
   şirket sayfası niyeti kullan.
 - En az dört sorguda ülke domain eki varsa site: operatörü kullan.
@@ -155,6 +158,10 @@ AYRICA ŞİRKET KİMLİĞİNİ VE TİCARİ ROLÜNÜ SINIFLANDIR:
   üretiminde veya operasyonunda kullanması açıkça doğrulanıyorsa yes olsun.
   Sektör doğası gereği güçlü bir teknik çıkarım varsa unverified bir fact ile
   belirt; bunu verified kanıt gibi sunma.
+- Kullanıcının "Hedef şirket türü" açıklamasında bir rol açıkça "hedef
+  değildir", "hariç" veya "dahil etme" şeklinde belirtilmişse bu rolü doğal
+  alıcı gibi yorumlama. Örneğin hedef yalnızca paketli gıda üreticileriyse,
+  gıda fabrikaları kuran sistem entegratörü hedef müşteri değildir.
 
 İçerik zengin olsa bile EN FAZLA 8 fact döndür - en satış açısından en önemli
 ve en doğrulanabilir olanları seç, geri kalanını atla. Bu bir zorunluluktur,
