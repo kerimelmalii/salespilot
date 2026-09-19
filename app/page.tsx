@@ -462,11 +462,11 @@ export default function Home() {
         <div className="mt-8">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-neutral-500">{rows.length} şirket adayı bulundu.</p>
+              <p className="text-sm text-neutral-500">{rows.length} ön elemeden geçen şirket adayı bulundu.</p>
               {searchSummary && (
                 <p className={`mt-1 text-xs ${searchSummary.targetReached ? "text-emerald-700" : "text-amber-700"}`}>
                   {searchSummary.targetReached
-                    ? `En az ${searchSummary.targetCount} aday hedefi karşılandı.`
+                    ? `En az ${searchSummary.targetCount} ön aday hedefi karşılandı. Bunlar araştırma sonrası doğrulanacak.`
                     : `Dar sonuç kümesinde ${searchSummary.targetCount} hedefine ulaşılamadı; sahte aday eklenmedi.`}
                   {` ${searchSummary.searchRequests} arama isteği · ${searchSummary.rejectedCount} gürültülü sonuç elendi.`}
                 </p>
