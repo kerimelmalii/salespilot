@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
-  assessOrganicResult,
+  assessBuyerDiscoveryResult,
   buildSearchQueries,
   displayNameFromResult,
   normalizeDomain,
   resolveSearchLocale,
+  validateSearchInputs,
   type SearchInputs,
 } from "@/lib/salespilot/discovery";
 import type { CompanyCandidate } from "@/lib/salespilot/types";
@@ -63,14 +64,16 @@ async function searchOneQuery(
   return (data.organic ?? []) as SerperOrganicResult[];
 }
 
-function acceptedCandidateCount(rawByDomain: Map<string, RawCandidate>): number {
+function acceptedCandidateCount(rawByDomain: Map<string, RawCandidate>, searchInputs: SearchInputs): number {
   let count = 0;
   for (const raw of rawByDomain.values()) {
-    if (assessOrganicResult({
+    if (assessBuyerDiscoveryResult({
       title: raw.title,
+      snippet: raw.snippet,
       url: raw.url,
       domain: raw.domain,
       occurrenceCount: raw.foundVia.length,
+      searchInputs,
     }).accepted) count += 1;
   }
   return count;
@@ -93,6 +96,10 @@ export async function POST(req: NextRequest) {
 
   if (!body.targetSector || !body.targetRegion || !body.productOrService) {
     return NextResponse.json({ error: "targetSector, targetRegion ve productOrService zorunlu." }, { status: 400 });
+  }
+  const validationError = validateSearchInputs(body);
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 });
   }
 
   const locale = resolveSearchLocale(body.targetRegion);
@@ -153,18 +160,20 @@ export async function POST(req: NextRequest) {
       }));
       batchResults.forEach(({ query, results }) => ingest(query, results));
       pagesSearched += batch.length;
-      if (acceptedCandidateCount(rawByDomain) >= discoveryPoolTarget) break outer;
+      if (acceptedCandidateCount(rawByDomain, body) >= discoveryPoolTarget) break outer;
     }
   }
 
   const rejected: { domain: string; reason: string }[] = [];
   const companies: CompanyCandidate[] = [];
   for (const raw of rawByDomain.values()) {
-    const assessment = assessOrganicResult({
+    const assessment = assessBuyerDiscoveryResult({
       title: raw.title,
+      snippet: raw.snippet,
       url: raw.url,
       domain: raw.domain,
       occurrenceCount: raw.foundVia.length,
+      searchInputs: body,
     });
     if (!assessment.accepted) {
       rejected.push({ domain: raw.domain, reason: assessment.reason });
