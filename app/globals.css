@@ -3,6 +3,63 @@
 @tailwind utilities;
 
 body {
-  background-color: #fafafa;
-  color: #171717;
+  margin: 0;
+  background-color: #f7f8f5;
+  color: #10221b;
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.field-input {
+  width: 100%;
+  border: 1px solid #dbe2e0;
+  border-radius: 0.75rem;
+  background: #fbfcfb;
+  padding: 0.75rem 0.875rem;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s, background .2s;
+}
+
+.field-input:focus {
+  border-color: #3f8064;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(63, 128, 100, .12);
+}
+
+.primary-button {
+  flex: none;
+  border: 0;
+  border-radius: 999px;
+  background: #123b2c;
+  padding: .8rem 1.2rem;
+  color: white;
+  font-size: .875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .2s, background .2s, opacity .2s;
+}
+
+.primary-button:hover { transform: translateY(-1px); background: #194c39; }
+.primary-button:disabled { cursor: wait; opacity: .55; transform: none; }
+
+::selection {
+  background: #cce5d5;
+  color: #123b2c;
 }

@@ -13,7 +13,7 @@ const PUBLIC_PATHS = ["/giris", "/api/giris"];
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p)) || pathname.startsWith("/_next")) {
+  if (pathname === "/" || PUBLIC_PATHS.some((p) => pathname.startsWith(p)) || pathname.startsWith("/_next")) {
     return NextResponse.next();
   }
 

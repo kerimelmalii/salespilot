@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type {
   CompanyResearch,
@@ -66,7 +67,7 @@ interface CompanyRow extends CompanyCandidate {
  * (ara -> araştır -> puanla) doğrulamak için. Nihai "Yeni Tarama" ekranının
  * tasarımı Faz 2'de, mockup'larla uyumlu şekilde ayrıca yapılacak.
  */
-export default function Home() {
+export function Dashboard() {
   const [userCompanyName, setUserCompanyName] = useState("");
   const [userWebsite, setUserWebsite] = useState("");
   const [targetSector, setTargetSector] = useState("");
@@ -348,110 +349,136 @@ export default function Home() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
-      <h1 className="text-2xl font-semibold">SalesPilot — Uçtan Uca Test</h1>
-      <p className="mt-1 text-sm text-neutral-500">
-        Faz 0/1 test sayfası: ara → araştır → puanla. Nihai tasarım Faz 2&apos;de.
-      </p>
+    <main className="min-h-screen bg-[#f5f7f6] text-slate-950">
+      <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8">
+          <Link href="/" className="flex items-center gap-3 font-semibold tracking-tight">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-950 text-sm text-white">SP</span>
+            SalesPilot
+          </Link>
+          <div className="flex items-center gap-3 text-sm text-slate-500">
+            <span className="hidden sm:inline">Akıllı lead çalışma alanı</span>
+            <span className="h-2 w-2 rounded-full bg-emerald-500" /> Sistem hazır
+          </div>
+        </div>
+      </header>
 
-      <form onSubmit={handleSearch} className="mt-8 space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+      <div className="mx-auto max-w-7xl px-5 py-8 lg:px-8 lg:py-10">
+        <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
-            <label className="block text-sm font-medium">Kendi şirket adınız</label>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Yeni tarama</p>
+            <h1 className="text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">Doğru şirketleri bulun.</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              Hedefinizi tanımlayın; SalesPilot şirketleri bulsun, alıcı rolünü doğrulasın ve kanıta dayalı puanlasın.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 shadow-sm">
+            <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-100 font-semibold text-emerald-700">1</span>
+            Hedefle <span className="text-slate-300">→</span> Doğrula <span className="text-slate-300">→</span> Puanla
+          </div>
+        </div>
+
+      <form onSubmit={handleSearch} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_16px_50px_-36px_rgba(15,23,42,.35)] sm:p-7">
+        <div className="mb-6 border-b border-slate-100 pb-5">
+          <h2 className="font-semibold tracking-tight">Arama profili</h2>
+          <p className="mt-1 text-sm text-slate-500">Net bilgi, daha az gürültü ve daha yüksek eşleşme kalitesi sağlar.</p>
+        </div>
+        <div className="grid gap-5 md:grid-cols-2">
+          <div>
+            <label className="field-label">Kendi şirketiniz</label>
             <input
-              className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2"
+              className="field-input"
+              placeholder="Örn. Turpack"
               value={userCompanyName}
               onChange={(e) => setUserCompanyName(e.target.value)}
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium">Kendi web siteniz</label>
+            <label className="field-label">Web siteniz</label>
             <input
-              className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2"
+              className="field-input"
               placeholder="https://..."
               value={userWebsite}
               onChange={(e) => setUserWebsite(e.target.value)}
               required
             />
           </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium">Hedef sektör</label>
+          <div>
+          <label className="field-label">Hedef sektör</label>
           <input
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2"
+            className="field-input"
             placeholder="örn. Gıda üreticileri"
             value={targetSector}
             onChange={(e) => setTargetSector(e.target.value)}
             required
           />
-        </div>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium">Hedef bölge</label>
+          <div>
+          <label className="field-label">Hedef bölge</label>
           <input
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2"
+            className="field-input"
             placeholder="örn. Bursa"
             value={targetRegion}
             onChange={(e) => setTargetRegion(e.target.value)}
             required
           />
-        </div>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium">Ürün/Hizmet</label>
+          <div>
+          <label className="field-label">Sunduğunuz ürün veya hizmet</label>
           <input
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2"
+            className="field-input"
             placeholder="örn. Endüstriyel gıda ambalajları"
             value={productOrService}
             onChange={(e) => setProductOrService(e.target.value)}
             required
           />
-        </div>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium">Hedef şirket türü (opsiyonel)</label>
+          <div>
+          <label className="field-label">Hedef alıcı tipi <span className="font-normal text-slate-400">— isteğe bağlı</span></label>
           <input
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2"
-            placeholder="örn. OEM makine üreticisi, sistem entegratörü"
+            className="field-input"
+            placeholder="Örn. aktif üretim yapan son kullanıcı"
             value={companyType}
             onChange={(e) => setCompanyType(e.target.value)}
           />
-          <p className="mt-1 text-xs text-neutral-400">
-            Makine üreticilerinin yanlışlıkla rakip sayılmaması için hedef alıcı rolünü belirtin.
+          <p className="mt-1.5 text-xs leading-5 text-slate-400">
+            Satıcı, rakip veya entegratörlerin elenmesi için gerçek alıcı rolünü yazın.
           </p>
-        </div>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium">Ek kriterler (opsiyonel)</label>
+          <div className="md:col-span-2">
+          <label className="field-label">Ek kriterler <span className="font-normal text-slate-400">— isteğe bağlı</span></label>
           <input
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2"
+            className="field-input"
             placeholder="örn. ihracat yapan, üretim tesisi bulunan"
             value={extraCriteria}
             onChange={(e) => setExtraCriteria(e.target.value)}
           />
-        </div>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium">Nitelikli lead eşiği</label>
+          <div>
+          <label className="field-label">Nitelikli lead eşiği</label>
           <input
             type="number"
             min={0}
             max={100}
-            className="mt-1 w-32 rounded-md border border-neutral-300 px-3 py-2"
+            className="field-input max-w-32"
             value={scoreThreshold}
             onChange={(e) => setScoreThreshold(Number(e.target.value))}
           />
+          </div>
         </div>
 
-        <button
-          type="submit"
-          disabled={searching}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-white disabled:opacity-50"
-        >
-          {searching ? "Aranıyor..." : "Taramayı Başlat"}
-        </button>
+        <div className="mt-7 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs leading-5 text-slate-400">Ön eleme sırasında alıcı olmayan şirketler araştırma maliyeti oluşturmadan elenir.</p>
+          <button type="submit" disabled={searching} className="primary-button">
+            {searching ? "Şirketler aranıyor…" : "Taramayı başlat →"}
+          </button>
+        </div>
       </form>
 
       {searchError && (
@@ -459,7 +486,7 @@ export default function Home() {
       )}
 
       {rows.length > 0 && (
-        <div className="mt-8">
+        <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_16px_50px_-36px_rgba(15,23,42,.35)] sm:p-7">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-neutral-500">{rows.length} ön elemeden geçen şirket adayı bulundu.</p>
@@ -491,9 +518,9 @@ export default function Home() {
             </div>
           </div>
 
-          <ul className="mt-4 divide-y divide-neutral-200 rounded-md border border-neutral-200">
+          <ul className="mt-5 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200">
             {rows.map((row) => (
-              <li key={row.domain} className="p-4">
+              <li key={row.domain} className="p-5 transition-colors hover:bg-slate-50/70">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <a
@@ -762,6 +789,81 @@ export default function Home() {
           </ul>
         </div>
       )}
+      </div>
+    </main>
+  );
+}
+
+const proofItems = [
+  ["01", "Keşfeder", "Farklı arama yollarıyla hedef pazardaki gerçek şirketleri bulur."],
+  ["02", "Doğrular", "Satıcıları, rakipleri ve ilgisiz sonuçları araştırmadan önce eler."],
+  ["03", "Puanlar", "Her eşleşmeyi açık gerekçeler ve doğrulanabilir kanıtlarla değerlendirir."],
+];
+
+export default function Home() {
+  return (
+    <main className="marketing-page min-h-screen overflow-hidden bg-[#f7f8f5] text-[#10221b]">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-6 lg:px-8">
+        <Link href="/" className="flex items-center gap-3 text-lg font-semibold tracking-tight">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#123b2c] text-xs text-white">SP</span>
+          SalesPilot
+        </Link>
+        <div className="hidden items-center gap-8 text-sm text-slate-600 md:flex">
+          <a href="#nasil-calisir" className="hover:text-slate-950">Nasıl çalışır?</a>
+          <a href="#neden" className="hover:text-slate-950">Neden SalesPilot?</a>
+        </div>
+        <Link href="/giris?next=/panel" className="rounded-full border border-[#123b2c]/20 bg-white px-5 py-2.5 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+          Panele git
+        </Link>
+      </nav>
+
+      <section className="relative mx-auto grid max-w-7xl items-center gap-14 px-5 pb-24 pt-14 lg:grid-cols-[1.05fr_.95fr] lg:px-8 lg:pb-32 lg:pt-24">
+        <div className="relative z-10">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-900/10 bg-white px-3 py-1.5 text-xs font-medium text-emerald-900 shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-[#70b88d]" /> Yapay zekâ destekli B2B satış zekâsı
+          </div>
+          <h1 className="max-w-3xl text-5xl font-semibold leading-[1.02] tracking-[-0.055em] sm:text-6xl lg:text-[76px]">
+            Daha çok şirket değil, <span className="text-[#3f8064]">doğru müşteri.</span>
+          </h1>
+          <p className="mt-7 max-w-xl text-lg leading-8 text-slate-600">
+            SalesPilot hedef pazarınızı tarar, gerçek alıcıları doğrular ve ekibinizin harekete geçebileceği nitelikli fırsatlara dönüştürür.
+          </p>
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <Link href="/giris?next=/panel" className="inline-flex items-center justify-center rounded-full bg-[#123b2c] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-950/15 transition hover:-translate-y-0.5 hover:bg-[#194c39]">
+              SalesPilot&apos;ı kullan →
+            </Link>
+            <a href="#nasil-calisir" className="inline-flex items-center justify-center rounded-full px-6 py-3.5 text-sm font-semibold text-slate-600 hover:bg-white">Nasıl çalıştığını gör</a>
+          </div>
+        </div>
+
+        <div className="relative">
+          <div className="absolute -inset-12 -z-10 rounded-full bg-[#dceade] blur-3xl" />
+          <div className="rotate-[1.5deg] rounded-[28px] border border-white/80 bg-[#123b2c] p-3 shadow-[0_35px_90px_-35px_rgba(10,45,32,.55)]">
+            <div className="rounded-[20px] bg-[#f9faf8] p-5 sm:p-7">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-5">
+                <div><p className="text-xs font-semibold uppercase tracking-widest text-emerald-700">Son tarama</p><p className="mt-1 font-semibold">Türkiye · Gıda üreticileri</p></div>
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">Tamamlandı</span>
+              </div>
+              <div className="grid grid-cols-3 gap-3 py-5">
+                {[["50", "aday"], ["18", "nitelikli"], ["36%", "eşleşme"]].map(([value, label]) => <div key={label} className="rounded-xl bg-white p-4 shadow-sm"><p className="text-2xl font-semibold tracking-tight">{value}</p><p className="mt-1 text-xs text-slate-400">{label}</p></div>)}
+              </div>
+              {[92, 87, 81].map((score, index) => <div key={score} className="mb-2 flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5"><span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-xs font-bold text-slate-500">{["AK", "DN", "MS"][index]}</span><div className="min-w-0 flex-1"><div className="h-2.5 w-2/3 rounded bg-slate-200"/><div className="mt-2 h-2 w-1/3 rounded bg-slate-100"/></div><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-sm font-semibold text-emerald-700">{score}</span></div>)}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="nasil-calisir" className="border-y border-emerald-950/10 bg-white py-20">
+        <div className="mx-auto max-w-7xl px-5 lg:px-8">
+          <p className="text-xs font-semibold uppercase tracking-[.2em] text-emerald-700">Nasıl çalışır?</p>
+          <div className="mt-4 grid gap-10 md:grid-cols-[.8fr_1.2fr]"><h2 className="text-3xl font-semibold tracking-[-.035em] sm:text-4xl">Aramadan karara,<br/>tek bir akış.</h2><p className="max-w-xl leading-7 text-slate-500">Klasik listeler şirket adı verir. SalesPilot ise o şirketin gerçekten alıcı olup olmadığını açıklayan bir karar zemini oluşturur.</p></div>
+          <div className="mt-14 grid gap-5 md:grid-cols-3">{proofItems.map(([number, title, text]) => <article key={number} className="rounded-2xl border border-slate-200 bg-[#fafbf9] p-6"><span className="text-xs font-semibold text-emerald-700">{number}</span><h3 className="mt-10 text-xl font-semibold">{title}</h3><p className="mt-3 text-sm leading-6 text-slate-500">{text}</p></article>)}</div>
+        </div>
+      </section>
+
+      <section id="neden" className="mx-auto max-w-7xl px-5 py-20 lg:px-8"><div className="rounded-[28px] bg-[#123b2c] px-6 py-14 text-center text-white sm:px-12"><p className="text-sm text-emerald-200">Satış araştırmasını yeniden düşünün.</p><h2 className="mx-auto mt-4 max-w-2xl text-3xl font-semibold tracking-[-.04em] sm:text-5xl">Ekibiniz araştırmaya değil, satışa zaman ayırsın.</h2><Link href="/giris?next=/panel" className="mt-8 inline-flex rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-[#123b2c]">Çalışma alanını aç →</Link></div></section>
+
+      <footer className="border-t border-emerald-950/10"><div className="mx-auto flex max-w-7xl flex-col justify-between gap-3 px-5 py-8 text-sm text-slate-400 sm:flex-row lg:px-8"><span>SalesPilot</span><span>Doğru şirket. Doğru kanıt. Doğru zaman.</span></div></footer>
     </main>
   );
 }

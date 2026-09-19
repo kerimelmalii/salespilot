@@ -26,7 +26,7 @@ function GirisForm() {
         setError(data.error ?? "Giriş başarısız.");
         return;
       }
-      router.push(searchParams.get("next") ?? "/");
+      router.push(searchParams.get("next") ?? "/panel");
       router.refresh();
     } finally {
       setLoading(false);
