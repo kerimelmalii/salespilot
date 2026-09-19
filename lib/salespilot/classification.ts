@@ -15,6 +15,97 @@ const INVALID_ENTITY_TYPES: EntityType[] = [
   "directory", "marketplace", "publisher", "public_institution",
 ];
 
+function normalizedTargetText(scanRequest: ScanRequest): string {
+  return `${scanRequest.companyType ?? ""} ${scanRequest.extraCriteria ?? ""}`
+    .toLocaleLowerCase("tr-TR");
+}
+
+export function targetRequiresEndUser(scanRequest: ScanRequest): boolean {
+  const text = normalizedTargetText(scanRequest);
+  const explicitlyExcludesSuppliers = /hedef değildir|hariç|dahil etme|ele/.test(text) &&
+    /makine üretici|makina üretici|distribütör|bayi|danışman|tedarikçi/.test(text);
+  const describesOperatingCompany =
+    /son kullanıcı|aktif üretim tesisi|paketli ürün üreten|fabrika(?:sı)? bulunan/.test(text);
+  return explicitlyExcludesSuppliers && describesOperatingCompany;
+}
+
+export function excludedBuyerRoles(scanRequest: ScanRequest): Set<CompanyResearch["buyerRole"]> {
+  const text = normalizedTargetText(scanRequest);
+  const hasExclusion = /hedef değildir|hariç|dahil etme|ele/.test(text);
+  const excluded = new Set<CompanyResearch["buyerRole"]>();
+  if (!hasExclusion) return excluded;
+  if (targetRequiresEndUser(scanRequest)) {
+    excluded.add("oem_manufacturer");
+    excluded.add("system_integrator");
+    excluded.add("distributor");
+    excluded.add("service_provider");
+    excluded.add("direct_competitor");
+    return excluded;
+  }
+  if (/makine üretici|makina üretici|oem/.test(text)) {
+    excluded.add("oem_manufacturer");
+    excluded.add("direct_competitor");
+  }
+  if (/entegratör|sistem entegrat/.test(text)) excluded.add("system_integrator");
+  if (/distribütör|bayi|tedarikçi/.test(text)) excluded.add("distributor");
+  if (/danışman|hizmet şirket/.test(text)) excluded.add("service_provider");
+  return excluded;
+}
+
+export function hardDisqualificationReason(
+  research: CompanyResearch,
+  scanRequest: ScanRequest
+): string | null {
+  if (INVALID_ENTITY_TYPES.includes(research.entityType) || research.officialWebsite === "no") {
+    return "Doğrulanmış bir şirket/resmî şirket sitesi değil.";
+  }
+  if (
+    research.buyerRole === "direct_competitor" &&
+    research.relationshipSignals.sellsSameOffering === "yes"
+  ) {
+    return "Aynı nihai ürünü üreten doğrulanmış doğrudan rakip.";
+  }
+  if (
+    targetRequiresEndUser(scanRequest) &&
+    research.relationshipSignals.sellsSameOffering === "yes"
+  ) {
+    return "Hedef son kullanıcı olmasına rağmen şirket aynı makine/çözümü müşterilerine satan bir sağlayıcı.";
+  }
+  if (excludedBuyerRoles(scanRequest).has(research.buyerRole)) {
+    return `Şirketin ticari rolü (${research.buyerRole}) kullanıcının açıkça hariç tuttuğu hedefler arasında.`;
+  }
+  return null;
+}
+
+export function createHardDisqualifiedScore(
+  research: CompanyResearch,
+  scanRequest: ScanRequest,
+  extraCriteria: Array<{ criterion: string; maxPoints: number }>
+): ScoreBreakdown | null {
+  const reason = hardDisqualificationReason(research, scanRequest);
+  if (!reason) return null;
+  const emptyCriterion = (criterion: string, maxPoints: number): CriterionScore => ({
+    criterion,
+    maxPoints,
+    awardedPoints: 0,
+    confidence: research.identityConfidence === "high" ? "high" : "medium",
+    reasoning: reason,
+    evidenceRefs: research.relationshipSignals.evidenceRefs,
+  });
+  return {
+    isPlausibleLead: false,
+    leadViabilityReason: reason,
+    sectorFit: emptyCriterion("Sektör uyumu", 30),
+    regionFit: emptyCriterion("Bölge uyumu", 15),
+    productFit: emptyCriterion("Ürün/Hizmet uyumu", 25),
+    extraCriteria: extraCriteria.map((item) => emptyCriterion(item.criterion, item.maxPoints)),
+    totalScore: 0,
+    evidenceConfidence: calculateEvidenceConfidence(research),
+    reviewStatus: "disqualified",
+    qualified: false,
+  };
+}
+
 function clampCriterion(score: CriterionScore, requiredMax?: number): CriterionScore {
   const maxPoints = requiredMax ?? Math.max(0, Number(score.maxPoints) || 0);
   const awardedPoints = Math.min(maxPoints, Math.max(0, Number(score.awardedPoints) || 0));
@@ -48,20 +139,14 @@ export function finalizeLeadScore(
     extraCriteria: (modelScore.extraCriteria ?? []).map((score) => clampCriterion(score)),
   };
 
-  const invalidEntity = INVALID_ENTITY_TYPES.includes(research.entityType) || research.officialWebsite === "no";
-  const directCompetitor =
-    research.buyerRole === "direct_competitor" &&
-    research.relationshipSignals.sellsSameOffering === "yes";
   const naturalBuyer =
     ["oem_manufacturer", "system_integrator", "end_user"].includes(research.buyerRole) &&
     research.relationshipSignals.usesOfferingInProductsOrOperations === "yes";
+  const hardReason = hardDisqualificationReason(research, scanRequest);
 
-  if (invalidEntity) {
+  if (hardReason) {
     parsed.isPlausibleLead = false;
-    parsed.leadViabilityReason = "Doğrulanmış bir şirket/resmî şirket sitesi değil.";
-  } else if (directCompetitor) {
-    parsed.isPlausibleLead = false;
-    parsed.leadViabilityReason = "Aynı nihai ürünü üreten doğrulanmış doğrudan rakip.";
+    parsed.leadViabilityReason = hardReason;
   } else if (naturalBuyer) {
     parsed.isPlausibleLead = true;
     parsed.leadViabilityReason =
@@ -70,7 +155,9 @@ export function finalizeLeadScore(
 
   if (!parsed.isPlausibleLead) {
     parsed.sectorFit.awardedPoints = Math.min(parsed.sectorFit.awardedPoints, 5);
+    parsed.regionFit.awardedPoints = Math.min(parsed.regionFit.awardedPoints, 5);
     parsed.productFit.awardedPoints = Math.min(parsed.productFit.awardedPoints, 5);
+    parsed.extraCriteria = parsed.extraCriteria.map((criterion) => ({ ...criterion, awardedPoints: 0 }));
   }
 
   const rawScore =
