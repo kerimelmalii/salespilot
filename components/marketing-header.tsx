@@ -17,28 +17,28 @@ export function MarketingHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/90 backdrop-blur-xl">
       <div className="marketing-header-row mx-auto max-w-7xl px-5 lg:px-8">
-        <Link href="/" className="flex w-fit items-center gap-2.5 justify-self-start text-[17px] font-semibold tracking-[-0.02em] text-slate-950">
-          <span className="flex h-9 w-9 items-end justify-center gap-[3px] rounded-[10px] bg-blue-600 px-2 py-1.5 shadow-sm shadow-blue-600/25">
-            <i className="h-2 w-1 rounded-[2px] bg-white/75" />
-            <i className="h-3.5 w-1 rounded-[2px] bg-white/90" />
-            <i className="h-5 w-1 rounded-[2px] bg-white" />
+        <Link href="/" className="flex w-fit items-center gap-3 justify-self-start text-lg font-semibold tracking-tight text-slate-950">
+          <span className="flex h-10 items-end gap-1 rounded-xl bg-blue-600 px-2.5 py-2 shadow-lg shadow-blue-600/20">
+            <i className="h-2 w-1.5 rounded-sm bg-white/80" />
+            <i className="h-4 w-1.5 rounded-sm bg-white/90" />
+            <i className="h-6 w-1.5 rounded-sm bg-white" />
           </span>
           SalesPilot
         </Link>
 
-        <nav aria-label="Ana menü" className="marketing-desktop-nav items-center gap-1 whitespace-nowrap rounded-xl border border-slate-200/80 bg-slate-50/80 p-1 text-sm font-medium text-slate-600 shadow-sm">
+        <nav aria-label="Ana menü" className="marketing-desktop-nav items-center gap-8 whitespace-nowrap text-sm font-medium text-slate-600">
           {links.map((link) => (
-            <Link key={link.href} href={link.href} className="rounded-lg px-3.5 py-2 transition-colors hover:bg-white hover:text-blue-700 hover:shadow-sm">
+            <Link key={link.href} href={link.href} className="transition-colors hover:text-blue-600">
               {link.label}
             </Link>
           ))}
         </nav>
 
         <div className="marketing-desktop-actions items-center justify-end gap-2">
-          <Link href="/giris?next=/panel" className="rounded-lg px-3.5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950">
+          <Link href="/giris?next=/panel" className="rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950">
             Giriş yap
           </Link>
-          <Link href="/kayit?plan=demo" className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-600/25 transition-colors hover:bg-blue-700">
+          <Link href="/kayit?plan=demo" className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/15 transition-colors hover:bg-blue-700">
             Ücretsiz başla
           </Link>
         </div>
