@@ -24,9 +24,9 @@ export default function SavedLeadsPage() {
           <div className="divide-y divide-slate-100">
             {leads.map((lead) => (
               <article key={lead.domain} className="flex items-center gap-4 p-5">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-50 font-semibold text-emerald-800">{lead.title.slice(0, 2).toUpperCase()}</span>
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-blue-50 font-semibold text-blue-800">{lead.title.slice(0, 2).toUpperCase()}</span>
                 <div className="min-w-0 flex-1"><h2 className="truncate font-semibold text-slate-800">{lead.title}</h2><p className="mt-1 truncate text-xs text-slate-400">{lead.domain} · {lead.sector || "Sektör belirtilmedi"}</p></div>
-                {lead.score !== undefined ? <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">{lead.score}</span> : null}
+                {lead.score !== undefined ? <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">{lead.score}</span> : null}
                 <a href={lead.url} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50" aria-label="Web sitesini aç"><ExternalLink className="h-4 w-4" /></a>
                 <button onClick={() => removeLead(lead)} className="rounded-lg border border-slate-200 p-2 text-slate-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600" aria-label="Kayıttan kaldır"><Trash2 className="h-4 w-4" /></button>
               </article>

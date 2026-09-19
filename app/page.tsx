@@ -13,6 +13,8 @@ import type {
 } from "@/lib/salespilot/types";
 import { isOptedOut, markOptedOut } from "@/lib/opt-out";
 import { readProfile, readSavedLeads, saveHistoryItem, toggleSavedLead } from "@/lib/salespilot/workspace-storage";
+import { MarketingHeader } from "@/components/marketing-header";
+import { ProductCarousel } from "@/components/product-carousel";
 
 type RowStatus = "idle" | "researching" | "scoring" | "done" | "error";
 type EmailStatus = "idle" | "drafting" | "ready" | "approved" | "sending" | "sent" | "error";
@@ -386,16 +388,16 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
   }
 
   return (
-    <main className={embedded ? "text-slate-950" : "min-h-screen bg-[#f5f7f6] text-slate-950"}>
+    <main className={embedded ? "text-slate-950" : "min-h-screen bg-[#f7f9fd] text-slate-950"}>
       {!embedded ? <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8">
           <Link href="/" className="flex items-center gap-3 font-semibold tracking-tight">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-950 text-sm text-white">SP</span>
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-950 text-sm text-white">SP</span>
             SalesPilot
           </Link>
           <div className="flex items-center gap-3 text-sm text-slate-500">
             <span className="hidden sm:inline">Akıllı lead çalışma alanı</span>
-            <span className="h-2 w-2 rounded-full bg-emerald-500" /> Sistem hazır
+            <span className="h-2 w-2 rounded-full bg-blue-500" /> Sistem hazır
           </div>
         </div>
       </header> : null}
@@ -403,14 +405,14 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
       <div className={embedded ? "" : "mx-auto max-w-7xl px-5 py-8 lg:px-8 lg:py-10"}>
         <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Yeni tarama</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Yeni tarama</p>
             <h1 className="text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">Doğru şirketleri bulun.</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
               Hedefinizi tanımlayın; SalesPilot şirketleri bulsun, alıcı rolünü doğrulasın ve kanıta dayalı puanlasın.
             </p>
           </div>
           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 shadow-sm">
-            <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-100 font-semibold text-emerald-700">1</span>
+            <span className="grid h-5 w-5 place-items-center rounded-full bg-blue-100 font-semibold text-blue-700">1</span>
             Hedefle <span className="text-slate-300">→</span> Doğrula <span className="text-slate-300">→</span> Puanla
           </div>
         </div>
@@ -528,7 +530,7 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
             <div>
               <p className="text-sm text-neutral-500">{rows.length} ön elemeden geçen şirket adayı bulundu.</p>
               {searchSummary && (
-                <p className={`mt-1 text-xs ${searchSummary.targetReached ? "text-emerald-700" : "text-amber-700"}`}>
+                <p className={`mt-1 text-xs ${searchSummary.targetReached ? "text-blue-700" : "text-amber-700"}`}>
                   {searchSummary.targetReached
                     ? `En az ${searchSummary.targetCount} ön aday hedefi karşılandı. Bunlar araştırma sonrası doğrulanacak.`
                     : `Dar sonuç kümesinde ${searchSummary.targetCount} hedefine ulaşılamadı; sahte aday eklenmedi.`}
@@ -580,7 +582,7 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
                         </p>
                         <p>
                           {row.research.contactEmails.length > 0 ? (
-                            <span className="text-emerald-700">
+                            <span className="text-blue-700">
                               ✉ {row.research.contactEmails[0].email}
                               <span className="text-neutral-400"> ({row.research.contactEmails[0].sourcePath}, domain doğrulandı)</span>
                             </span>
@@ -593,7 +595,7 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
                   </div>
 
                   <div className="text-right">
-                    <button type="button" onClick={() => handleSaveLead(row)} className={`mb-3 ml-auto grid h-8 w-8 place-items-center rounded-lg border transition ${savedDomains.has(row.domain) ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-400 hover:bg-slate-50"}`} aria-label={savedDomains.has(row.domain) ? "Kayıttan kaldır" : "Lead'i kaydet"} title={savedDomains.has(row.domain) ? "Kayıttan kaldır" : "Lead'i kaydet"}>
+                    <button type="button" onClick={() => handleSaveLead(row)} className={`mb-3 ml-auto grid h-8 w-8 place-items-center rounded-lg border transition ${savedDomains.has(row.domain) ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-400 hover:bg-slate-50"}`} aria-label={savedDomains.has(row.domain) ? "Kayıttan kaldır" : "Lead'i kaydet"} title={savedDomains.has(row.domain) ? "Kayıttan kaldır" : "Lead'i kaydet"}>
                       <Bookmark className="h-4 w-4" fill={savedDomains.has(row.domain) ? "currentColor" : "none"} />
                     </button>
                     {row.status === "idle" && (
@@ -747,7 +749,7 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleApprove(row)}
-                                className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm text-white"
+                                className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white"
                               >
                                 Onayla
                               </button>
@@ -762,7 +764,7 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
 
                           {row.emailStatus === "approved" && (
                             <div>
-                              <p className="rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                              <p className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800">
                                 ✓ Onaylandı ({new Date(row.emailDraft.approvedAt!).toLocaleString("tr-TR")})
                               </p>
                               {row.sendError && (
@@ -787,7 +789,7 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
                                 className={`rounded-md px-3 py-2 text-xs ${
                                   row.sentTestMode
                                     ? "bg-amber-50 text-amber-800"
-                                    : "bg-emerald-50 text-emerald-800"
+                                    : "bg-blue-50 text-blue-800"
                                 }`}
                               >
                                 {row.sentTestMode
@@ -848,84 +850,75 @@ const capabilityItems = [
 
 export default function Home() {
   return (
-    <main className="marketing-page min-h-screen overflow-hidden bg-[#f7f8f5] text-[#10221b]">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-3 text-lg font-semibold tracking-tight">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#123b2c] text-xs text-white">SP</span>
-          SalesPilot
-        </Link>
-        <div className="hidden items-center gap-8 text-sm text-slate-600 md:flex">
-          <a href="#urun" className="hover:text-slate-950">Ürün</a>
-          <a href="#nasil-calisir" className="hover:text-slate-950">Nasıl çalışır?</a>
-          <a href="#neden" className="hover:text-slate-950">Neden SalesPilot?</a>
-        </div>
-        <Link href="/giris?next=/panel" className="rounded-full border border-[#123b2c]/20 bg-white px-5 py-2.5 text-sm font-semibold shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-          Panele git
-        </Link>
-      </nav>
+    <main className="marketing-page min-h-screen overflow-hidden bg-[#f7f9fd] text-[#0f172a]">
+      <MarketingHeader />
 
       <section className="relative mx-auto grid max-w-7xl items-center gap-14 px-5 pb-24 pt-14 lg:grid-cols-[1.05fr_.95fr] lg:px-8 lg:pb-32 lg:pt-24">
         <div className="relative z-10">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-900/10 bg-white px-3 py-1.5 text-xs font-medium text-emerald-900 shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-[#70b88d]" /> Yapay zekâ destekli B2B satış zekâsı
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-900/10 bg-white px-3 py-1.5 text-xs font-medium text-blue-900 shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-blue-500" /> Yapay zekâ destekli B2B satış zekâsı
           </div>
           <h1 className="max-w-3xl text-5xl font-semibold leading-[1.02] tracking-[-0.055em] sm:text-6xl lg:text-[76px]">
-            Daha çok şirket değil, <span className="text-[#3f8064]">doğru müşteri.</span>
+            Daha çok şirket değil, <span className="text-[#2563eb]">doğru müşteri.</span>
           </h1>
           <p className="mt-7 max-w-xl text-lg leading-8 text-slate-600">
             SalesPilot hedef pazarınızı tarar, gerçek alıcıları doğrular ve ekibinizin harekete geçebileceği nitelikli fırsatlara dönüştürür.
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <Link href="/giris?next=/panel" className="inline-flex items-center justify-center rounded-full bg-[#123b2c] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-950/15 transition hover:-translate-y-0.5 hover:bg-[#194c39]">
-              SalesPilot&apos;ı kullan →
+            <Link href="/kayit?plan=demo" className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/15 transition hover:-translate-y-0.5 hover:bg-blue-700">
+              Ücretsiz demo başlat →
             </Link>
-            <a href="#nasil-calisir" className="inline-flex items-center justify-center rounded-full px-6 py-3.5 text-sm font-semibold text-slate-600 hover:bg-white">Nasıl çalıştığını gör</a>
+            <a href="#vitrin" className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-600 hover:border-blue-300 hover:text-blue-700">Ürünü keşfet</a>
           </div>
         </div>
 
         <div className="relative">
-          <div className="absolute -inset-12 -z-10 rounded-full bg-[#dceade] blur-3xl" />
-          <div className="rotate-[1.5deg] rounded-[28px] border border-white/80 bg-[#123b2c] p-3 shadow-[0_35px_90px_-35px_rgba(10,45,32,.55)]">
+          <div className="absolute -inset-12 -z-10 rounded-full bg-[#dbeafe] blur-3xl" />
+          <div className="rotate-[1.5deg] rounded-[28px] border border-white/80 bg-[#071b3c] p-3 shadow-[0_35px_90px_-35px_rgba(10,45,32,.55)]">
             <div className="rounded-[20px] bg-[#f9faf8] p-5 sm:p-7">
               <div className="flex items-center justify-between border-b border-slate-200 pb-5">
-                <div><p className="text-xs font-semibold uppercase tracking-widest text-emerald-700">Son tarama</p><p className="mt-1 font-semibold">Türkiye · Gıda üreticileri</p></div>
-                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">Tamamlandı</span>
+                <div><p className="text-xs font-semibold uppercase tracking-widest text-blue-700">Son tarama</p><p className="mt-1 font-semibold">Türkiye · Gıda üreticileri</p></div>
+                <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">Tamamlandı</span>
               </div>
               <div className="grid grid-cols-3 gap-3 py-5">
                 {[["50", "aday"], ["18", "nitelikli"], ["36%", "eşleşme"]].map(([value, label]) => <div key={label} className="rounded-xl bg-white p-4 shadow-sm"><p className="text-2xl font-semibold tracking-tight">{value}</p><p className="mt-1 text-xs text-slate-400">{label}</p></div>)}
               </div>
-              {[92, 87, 81].map((score, index) => <div key={score} className="mb-2 flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5"><span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-xs font-bold text-slate-500">{["AK", "DN", "MS"][index]}</span><div className="min-w-0 flex-1"><div className="h-2.5 w-2/3 rounded bg-slate-200"/><div className="mt-2 h-2 w-1/3 rounded bg-slate-100"/></div><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-sm font-semibold text-emerald-700">{score}</span></div>)}
+              {[92, 87, 81].map((score, index) => <div key={score} className="mb-2 flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5"><span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-xs font-bold text-slate-500">{["AK", "DN", "MS"][index]}</span><div className="min-w-0 flex-1"><div className="h-2.5 w-2/3 rounded bg-slate-200"/><div className="mt-2 h-2 w-1/3 rounded bg-slate-100"/></div><span className="rounded-full bg-blue-50 px-2.5 py-1 text-sm font-semibold text-blue-700">{score}</span></div>)}
             </div>
           </div>
         </div>
       </section>
 
+      <section id="vitrin" className="border-y border-blue-100 bg-white py-20 lg:py-28">
+        <div className="mx-auto max-w-7xl px-5 lg:px-8"><div className="mx-auto mb-12 max-w-3xl text-center"><p className="text-xs font-semibold uppercase tracking-[.2em] text-blue-600">SalesPilot nasıl çalışır?</p><h2 className="mt-4 text-3xl font-semibold tracking-[-.04em] sm:text-5xl">Ürünün bütün hikâyesi, tek bir akışta.</h2><p className="mt-5 text-base leading-7 text-slate-500">Manuel müşteri aramanın yarattığı karmaşadan; şirketleri araştıran, puanlayan ve iletişime hazırlayan modern bir satış sistemine geçin.</p></div><ProductCarousel /></div>
+      </section>
+
       <section id="urun" className="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-28">
         <div className="grid gap-10 lg:grid-cols-[.75fr_1.25fr] lg:items-end">
-          <div><p className="text-xs font-semibold uppercase tracking-[.2em] text-emerald-700">Alıcı zekâsı</p><h2 className="mt-4 text-3xl font-semibold tracking-[-.04em] sm:text-5xl">Listenin ötesinde bir karar sistemi.</h2></div>
+          <div><p className="text-xs font-semibold uppercase tracking-[.2em] text-blue-700">Alıcı zekâsı</p><h2 className="mt-4 text-3xl font-semibold tracking-[-.04em] sm:text-5xl">Listenin ötesinde bir karar sistemi.</h2></div>
           <p className="max-w-2xl text-base leading-8 text-slate-500">SalesPilot yalnızca şirket isimleri toplamaz. Hangi şirketin neden gerçek bir fırsat olduğunu, hangi kanıta dayandığını ve nerede insan kontrolü gerektiğini gösterir.</p>
         </div>
-        <div className="mt-14 grid gap-5 lg:grid-cols-3">{capabilityItems.map(({ icon: Icon, title, text }) => <article key={title} className="rounded-2xl border border-emerald-950/10 bg-white p-7 shadow-[0_20px_50px_-40px_rgba(16,50,36,.45)]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-50 text-emerald-800"><Icon className="h-5 w-5"/></span><h3 className="mt-8 text-xl font-semibold tracking-tight">{title}</h3><p className="mt-3 text-sm leading-6 text-slate-500">{text}</p></article>)}</div>
+        <div className="mt-14 grid gap-5 lg:grid-cols-3">{capabilityItems.map(({ icon: Icon, title, text }) => <article key={title} className="rounded-2xl border border-blue-950/10 bg-white p-7 shadow-[0_20px_50px_-40px_rgba(16,50,36,.45)]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-50 text-blue-800"><Icon className="h-5 w-5"/></span><h3 className="mt-8 text-xl font-semibold tracking-tight">{title}</h3><p className="mt-3 text-sm leading-6 text-slate-500">{text}</p></article>)}</div>
       </section>
 
-      <section id="nasil-calisir" className="border-y border-emerald-950/10 bg-white py-20">
+      <section id="nasil-calisir" className="border-y border-blue-950/10 bg-white py-20">
         <div className="mx-auto max-w-7xl px-5 lg:px-8">
-          <p className="text-xs font-semibold uppercase tracking-[.2em] text-emerald-700">Nasıl çalışır?</p>
+          <p className="text-xs font-semibold uppercase tracking-[.2em] text-blue-700">Nasıl çalışır?</p>
           <div className="mt-4 grid gap-10 md:grid-cols-[.8fr_1.2fr]"><h2 className="text-3xl font-semibold tracking-[-.035em] sm:text-4xl">Aramadan karara,<br/>tek bir akış.</h2><p className="max-w-xl leading-7 text-slate-500">Klasik listeler şirket adı verir. SalesPilot ise o şirketin gerçekten alıcı olup olmadığını açıklayan bir karar zemini oluşturur.</p></div>
-          <div className="mt-14 grid gap-5 md:grid-cols-3">{proofItems.map(([number, title, text]) => <article key={number} className="rounded-2xl border border-slate-200 bg-[#fafbf9] p-6"><span className="text-xs font-semibold text-emerald-700">{number}</span><h3 className="mt-10 text-xl font-semibold">{title}</h3><p className="mt-3 text-sm leading-6 text-slate-500">{text}</p></article>)}</div>
+          <div className="mt-14 grid gap-5 md:grid-cols-3">{proofItems.map(([number, title, text]) => <article key={number} className="rounded-2xl border border-slate-200 bg-[#f8faff] p-6"><span className="text-xs font-semibold text-blue-700">{number}</span><h3 className="mt-10 text-xl font-semibold">{title}</h3><p className="mt-3 text-sm leading-6 text-slate-500">{text}</p></article>)}</div>
         </div>
       </section>
 
-      <section className="bg-[#eef3ee] py-20">
+      <section className="bg-[#eff6ff] py-20">
         <div className="mx-auto grid max-w-7xl gap-12 px-5 lg:grid-cols-2 lg:px-8">
-          <div><p className="text-xs font-semibold uppercase tracking-[.2em] text-emerald-700">Neden farklı?</p><h2 className="mt-4 text-3xl font-semibold tracking-[-.04em] sm:text-4xl">Yapay zekâ karar verirken nedenini de gösterir.</h2><p className="mt-5 max-w-xl leading-7 text-slate-500">Eksik veriye yüksek puan vermek yerine belirsizliği görünür kılar. Böylece satış ekibi kara kutu puanlara değil, incelenebilir kanıtlara göre hareket eder.</p></div>
-          <div className="rounded-2xl border border-emerald-950/10 bg-white p-6 sm:p-8">{["Alıcı rolü doğrulaması", "Rakip ve tedarikçi elemesi", "Kaynak bağlantılı puan gerekçesi", "Düşük güvenli sonuçlarda insan incelemesi", "İletişim öncesinde açık kullanıcı onayı"].map((item) => <p key={item} className="flex items-center gap-3 border-b border-slate-100 py-4 text-sm font-medium text-slate-700 last:border-0"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-700"/>{item}</p>)}</div>
+          <div><p className="text-xs font-semibold uppercase tracking-[.2em] text-blue-700">Neden farklı?</p><h2 className="mt-4 text-3xl font-semibold tracking-[-.04em] sm:text-4xl">Yapay zekâ karar verirken nedenini de gösterir.</h2><p className="mt-5 max-w-xl leading-7 text-slate-500">Eksik veriye yüksek puan vermek yerine belirsizliği görünür kılar. Böylece satış ekibi kara kutu puanlara değil, incelenebilir kanıtlara göre hareket eder.</p></div>
+          <div className="rounded-2xl border border-blue-950/10 bg-white p-6 sm:p-8">{["Alıcı rolü doğrulaması", "Rakip ve tedarikçi elemesi", "Kaynak bağlantılı puan gerekçesi", "Düşük güvenli sonuçlarda insan incelemesi", "İletişim öncesinde açık kullanıcı onayı"].map((item) => <p key={item} className="flex items-center gap-3 border-b border-slate-100 py-4 text-sm font-medium text-slate-700 last:border-0"><CheckCircle2 className="h-5 w-5 shrink-0 text-blue-700"/>{item}</p>)}</div>
         </div>
       </section>
 
-      <section id="neden" className="mx-auto max-w-7xl px-5 py-20 lg:px-8"><div className="rounded-[28px] bg-[#123b2c] px-6 py-14 text-center text-white sm:px-12"><p className="text-sm text-emerald-200">Satış araştırmasını yeniden düşünün.</p><h2 className="mx-auto mt-4 max-w-2xl text-3xl font-semibold tracking-[-.04em] sm:text-5xl">Ekibiniz araştırmaya değil, satışa zaman ayırsın.</h2><Link href="/giris?next=/panel" className="mt-8 inline-flex rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-[#123b2c]">Çalışma alanını aç →</Link></div></section>
+      <section id="neden" className="mx-auto max-w-7xl px-5 py-20 lg:px-8"><div className="rounded-2xl bg-[#071b3c] px-6 py-14 text-center text-white sm:px-12"><p className="text-sm text-blue-200">Satış araştırmasını yeniden düşünün.</p><h2 className="mx-auto mt-4 max-w-2xl text-3xl font-semibold tracking-[-.04em] sm:text-5xl">Ekibiniz araştırmaya değil, satışa zaman ayırsın.</h2><Link href="/kayit?plan=demo" className="mt-8 inline-flex rounded-lg bg-white px-6 py-3.5 text-sm font-semibold text-[#071b3c]">Ücretsiz demo başlat →</Link></div></section>
 
-      <footer className="border-t border-emerald-950/10"><div className="mx-auto flex max-w-7xl flex-col justify-between gap-3 px-5 py-8 text-sm text-slate-400 sm:flex-row lg:px-8"><span>SalesPilot</span><span>Doğru şirket. Doğru kanıt. Doğru zaman.</span></div></footer>
+      <footer className="border-t border-slate-200 bg-white"><div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr] lg:px-8"><div><p className="text-lg font-semibold text-slate-900">SalesPilot</p><p className="mt-3 max-w-sm text-sm leading-6 text-slate-500">Doğru şirketi keşfedin, kanıtlarla değerlendirin ve satış fırsatına dönüştürün.</p></div><div><p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Ürün</p><div className="mt-4 space-y-3 text-sm text-slate-500"><Link className="block hover:text-blue-600" href="/#nasil-calisir">Nasıl çalışır?</Link><Link className="block hover:text-blue-600" href="/fiyatlandirma">Fiyatlandırma</Link><Link className="block hover:text-blue-600" href="/kayit?plan=demo">Ücretsiz demo</Link></div></div><div><p className="text-xs font-semibold uppercase tracking-widest text-slate-400">SalesPilot</p><div className="mt-4 space-y-3 text-sm text-slate-500"><Link className="block hover:text-blue-600" href="/hakkimizda">Hakkımızda</Link><Link className="block hover:text-blue-600" href="/giris?next=/panel">Giriş yap</Link></div></div></div><div className="border-t border-slate-100"><div className="mx-auto flex max-w-7xl flex-col justify-between gap-3 px-5 py-6 text-xs text-slate-400 sm:flex-row lg:px-8"><span>© 2026 SalesPilot</span><span>Daha akıllı satış. Daha doğru fırsat.</span></div></div></footer>
     </main>
   );
 }
