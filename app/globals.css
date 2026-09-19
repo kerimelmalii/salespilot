@@ -78,7 +78,8 @@ html {
 .primary-button {
   flex: none;
   border: 0;
-  border-radius: .6rem;
+  min-height: 44px;
+  border-radius: 999px;
   background: #2563eb;
   padding: .8rem 1.2rem;
   color: white;
@@ -124,13 +125,24 @@ html {
   line-height: 1;
 }
 
-.app-sidebar-desktop,
-.app-desktop-only {
-  display: none;
+.app-sidebar-desktop {
+  display: block;
+  width: 16rem;
 }
 
-.app-mobile-only {
-  display: inline-flex;
+.app-main-content {
+  padding-left: 16rem;
+}
+
+.sidebar-nav-link {
+  border-radius: 0.75rem;
+}
+
+:where(a, button).rounded-lg:not([aria-label]):not([aria-pressed]) {
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
 }
 
 @media (min-width: 1024px) {
@@ -157,20 +169,4 @@ html {
     display: none;
   }
 
-  .app-sidebar-desktop {
-    display: block;
-  }
-
-  .app-desktop-only {
-    display: block;
-  }
-
-  .app-mobile-only,
-  .app-mobile-overlay {
-    display: none;
-  }
-
-  .app-main-content {
-    padding-left: 16rem;
-  }
 }
