@@ -36,7 +36,11 @@ import type {
   BuyerRole,
   TernarySignal,
 } from "./types";
-import { finalizeLeadScore, type ModelScore } from "./classification";
+import {
+  createHardDisqualifiedScore,
+  finalizeLeadScore,
+  type ModelScore,
+} from "./classification";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -237,6 +241,15 @@ export async function scoreCompany(
   scanRequest: ScanRequest,
   extraCriteriaRubric: ExtraCriterion[]
 ): Promise<ScoreBreakdown> {
+  // Kesin rakip/dizin/hariç rol için ikinci bir model çağrısı para ve zaman
+  // israfıdır. Araştırma kanıtı yeterliyse sonucu deterministik üretiriz.
+  const hardDisqualified = createHardDisqualifiedScore(
+    research,
+    scanRequest,
+    extraCriteriaRubric
+  );
+  if (hardDisqualified) return hardDisqualified;
+
   const parsed = await callAnthropicForJson<ModelScore>({
     model: SCORING_MODEL,
     maxTokens: 2000,
