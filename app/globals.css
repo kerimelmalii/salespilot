@@ -113,6 +113,15 @@ html {
   display: inline-flex;
 }
 
+.app-sidebar-desktop,
+.app-desktop-only {
+  display: none;
+}
+
+.app-mobile-only {
+  display: inline-flex;
+}
+
 @media (min-width: 1024px) {
   .marketing-header-row {
     grid-template-columns: 1fr auto 1fr;
@@ -133,5 +142,22 @@ html {
 
   .marketing-mobile-toggle {
     display: none;
+  }
+
+  .app-sidebar-desktop {
+    display: block;
+  }
+
+  .app-desktop-only {
+    display: block;
+  }
+
+  .app-mobile-only,
+  .app-mobile-overlay {
+    display: none;
+  }
+
+  .app-main-content {
+    padding-left: 16rem;
   }
 }
