@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
  */
 
 const COOKIE_NAME = "sp_auth";
-const PUBLIC_PATHS = ["/giris", "/kayit", "/fiyatlandirma", "/hakkimizda", "/showcase", "/api/giris"];
+const PUBLIC_PATHS = ["/giris", "/kayit", "/fiyatlandirma", "/hakkimizda", "/blog", "/showcase", "/api/giris"];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
