@@ -1,17 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MarketingHeader } from "@/components/marketing-header";
+import { BLOG_POSTS } from "@/lib/blog-posts";
 
 export const metadata: Metadata = {
-  title: "Blog | SalesPilot",
+  title: "B2B Satış ve Lead Bulma Blogu",
   description: "B2B satış, hedef müşteri bulma, lead doğrulama ve satış zekâsı üzerine SalesPilot içerikleri.",
+  alternates: { canonical: "/blog" },
+  openGraph: { title: "SalesPilot Blog | B2B Satış ve Lead Bulma", description: "B2B hedefleme, lead doğrulama ve satış zekâsı üzerine uygulanabilir içerikler.", url: "/blog", type: "website" },
 };
-
-const posts = [
-  { category: "Hedefleme", title: "Doğru B2B hedef kitle nasıl belirlenir?", text: "İyi bir hedef kitle tanımı yalnızca sektör adı değildir. Bölge, şirket türü, ürün ihtiyacı ve alıcı rolü birlikte düşünülmelidir.", readTime: "6 dk okuma" },
-  { category: "Satış zekâsı", title: "Şirket listesi değil, satış kararı", text: "Uzun listeler ekibe daha fazla iş çıkarır. Değerli olan, şirketin neden uygun olduğunu açıklayan ve sonraki adımı netleştiren bilgidir.", readTime: "5 dk okuma" },
-  { category: "Yapay zekâ", title: "Lead puanı ne zaman güvenilirdir?", text: "Puanlama; açık kriterlere, doğrulanabilir kaynaklara ve belirsizliği dürüstçe gösteren bir değerlendirme sistemine dayanmalıdır.", readTime: "7 dk okuma" },
-];
 
 export default function BlogPage() {
   return (
@@ -22,13 +19,14 @@ export default function BlogPage() {
         <h1 className="mt-5 max-w-3xl text-4xl font-semibold tracking-[-.05em] sm:text-6xl">Daha doğru müşteriler için daha net fikirler.</h1>
         <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-500">B2B araştırma, hedefleme ve satış zekâsını uygulanabilir yöntemlerle ele alan kısa içerikler.</p>
       </section>
-      <section className="border-y border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl divide-y divide-slate-200 px-5 lg:px-8">
-          {posts.map((post, index) => (
-            <article key={post.title} className="grid gap-5 py-10 md:grid-cols-[4rem_1fr_auto] md:items-start md:gap-8 lg:py-14">
-              <span className="text-sm font-semibold text-blue-600">0{index + 1}</span>
-              <div><p className="text-xs font-semibold uppercase tracking-[.14em] text-slate-400">{post.category}</p><h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">{post.title}</h2><p className="mt-4 max-w-2xl text-sm leading-7 text-slate-500">{post.text}</p></div>
-              <span className="text-sm text-slate-400">{post.readTime}</span>
+      <section className="border-y border-slate-200 bg-white py-16 lg:py-24">
+        <div className="mx-auto grid max-w-7xl gap-6 px-5 md:grid-cols-2 lg:grid-cols-3 lg:px-8">
+          {BLOG_POSTS.map((post) => (
+            <article key={post.slug} className="flex min-h-80 flex-col rounded-2xl border border-slate-200 bg-[#f8faff] p-7 shadow-[0_20px_55px_-48px_rgba(37,99,235,.55)]">
+              <div className="flex items-center justify-between text-xs"><span className="font-semibold uppercase tracking-[.14em] text-blue-700">{post.category}</span><time dateTime={post.publishedAt} className="text-slate-400">{post.readTime}</time></div>
+              <h2 className="mt-10 text-2xl font-semibold leading-8 tracking-tight">{post.title}</h2>
+              <p className="mt-4 text-sm leading-7 text-slate-500">{post.excerpt}</p>
+              <Link href={`/blog/${post.slug}`} className="mt-auto inline-flex w-fit rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700">Oku <span className="ml-2" aria-hidden="true">→</span></Link>
             </article>
           ))}
         </div>

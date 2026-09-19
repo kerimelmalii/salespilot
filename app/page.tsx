@@ -15,6 +15,7 @@ import { isOptedOut, markOptedOut } from "@/lib/opt-out";
 import { readProfile, readSavedLeads, saveHistoryItem, toggleSavedLead } from "@/lib/salespilot/workspace-storage";
 import { MarketingHeader } from "@/components/marketing-header";
 import { ProductStory } from "@/components/product-story";
+import { BLOG_POSTS } from "@/lib/blog-posts";
 
 type RowStatus = "idle" | "researching" | "scoring" | "done" | "error";
 type EmailStatus = "idle" | "drafting" | "ready" | "approved" | "sending" | "sent" | "error";
@@ -848,12 +849,6 @@ const capabilityItems = [
   { icon: Workflow, title: "Araştırmadan aksiyona tek akış", text: "Lead'i kaydedin, gerekçesini inceleyin, iletişim taslağını onaylayın ve sonucu takip edin." },
 ];
 
-const blogPosts = [
-  { category: "Hedefleme", title: "Doğru B2B hedef kitle nasıl belirlenir?", text: "Sektör, bölge ve ürün bilgisini gerçek bir alıcı profiline dönüştürmenin temel adımları.", readTime: "6 dk" },
-  { category: "Satış zekâsı", title: "Şirket listesi değil, satış kararı", text: "Kalabalık aday listeleri yerine kanıta dayalı ve harekete geçirilebilir fırsatlar oluşturmak.", readTime: "5 dk" },
-  { category: "Yapay zekâ", title: "Lead puanı ne zaman güvenilirdir?", text: "Bir puanın arkasında hangi verilerin, kontrollerin ve insan değerlendirmesinin bulunması gerekir?", readTime: "7 dk" },
-];
-
 export default function Home() {
   return (
     <main className="marketing-page min-h-screen overflow-hidden bg-[#f7f9fd] text-[#0f172a]">
@@ -942,14 +937,13 @@ export default function Home() {
             <Link href="/blog" className="text-sm font-semibold text-blue-700 transition hover:text-blue-900">Tüm yazıları gör →</Link>
           </div>
           <div className="mt-12 grid gap-5 lg:grid-cols-3">
-            {blogPosts.map((post, index) => (
-              <Link key={post.title} href="/blog" className="group flex min-h-72 flex-col rounded-2xl border border-slate-200 bg-[#f8faff] p-7 transition duration-200 hover:-translate-y-1 hover:border-blue-200 hover:bg-white hover:shadow-[0_24px_60px_-45px_rgba(37,99,235,.55)]">
+            {BLOG_POSTS.map((post) => (
+              <article key={post.slug} className="flex min-h-72 flex-col rounded-2xl border border-slate-200 bg-[#f8faff] p-7 transition duration-200 hover:-translate-y-1 hover:border-blue-200 hover:bg-white hover:shadow-[0_24px_60px_-45px_rgba(37,99,235,.55)]">
                 <div className="flex items-center justify-between text-xs"><span className="font-semibold uppercase tracking-[.14em] text-blue-700">{post.category}</span><span className="text-slate-400">{post.readTime}</span></div>
                 <h3 className="mt-10 text-xl font-semibold leading-7 tracking-tight text-slate-950">{post.title}</h3>
-                <p className="mt-4 text-sm leading-6 text-slate-500">{post.text}</p>
-                <span className="mt-auto pt-8 text-sm font-semibold text-slate-700 transition group-hover:text-blue-700">Yazıyı oku <span aria-hidden="true">→</span></span>
-                <span className="sr-only">Blog yazısı {index + 1}</span>
-              </Link>
+                <p className="mt-4 text-sm leading-6 text-slate-500">{post.excerpt}</p>
+                <Link href={`/blog/${post.slug}`} className="mt-auto inline-flex w-fit rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700">Oku <span className="ml-2" aria-hidden="true">→</span></Link>
+              </article>
             ))}
           </div>
         </div>

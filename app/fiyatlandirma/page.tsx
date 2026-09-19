@@ -1,6 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { MarketingHeader } from "@/components/marketing-header";
+
+export const metadata: Metadata = {
+  title: "Fiyatlandırma",
+  description: "SalesPilot Demo, Growth ve Pro paketlerini karşılaştırın; B2B müşteri bulma ve lead puanlama ihtiyaçlarınıza uygun planı seçin.",
+  alternates: { canonical: "/fiyatlandirma" },
+  openGraph: { title: "SalesPilot Fiyatlandırma", description: "Ekibinize uygun B2B satış zekâsı planını seçin.", url: "/fiyatlandirma" },
+};
 
 const plans = [
   { id: "demo", name: "Demo", price: "₺0", suffix: "14 gün", description: "SalesPilot’ın doğru lead yaklaşımını risksiz deneyin.", features: ["1 kullanıcı", "2 şirket taraması", "Tarama başına 10 aday", "Temel şirket analizi", "Kanıta dayalı puanlama"], cta: "Ücretsiz dene", featured: false },

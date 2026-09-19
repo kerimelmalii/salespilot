@@ -1,6 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Eye, Lightbulb, ShieldCheck, Target } from "lucide-react";
 import { MarketingHeader } from "@/components/marketing-header";
+
+export const metadata: Metadata = {
+  title: "Hakkımızda",
+  description: "SalesPilot'ın kanıta dayalı B2B müşteri araştırmasını daha hızlı, şeffaf ve yönetilebilir hâle getirme yaklaşımını keşfedin.",
+  alternates: { canonical: "/hakkimizda" },
+  openGraph: { title: "Hakkımızda | SalesPilot", description: "B2B satış araştırmasını daha akıllı ve güvenilir hâle getiriyoruz.", url: "/hakkimizda" },
+};
 
 const values = [
   { icon: Target, title: "Doğruluk", text: "Kalabalık listeler yerine, gerçekten alıcı olma ihtimali yüksek şirketleri bulmaya odaklanıyoruz." },
