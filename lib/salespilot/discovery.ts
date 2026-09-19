@@ -38,13 +38,23 @@ const DIRECTORY_DOMAINS = [
   "infobel.com", "werliefertwas.de", "directindustry.com", "industrynet.com",
   "sahibinden.com", "capterra.com", "capterra.web.tr", "made-in-china.com",
   "alibaba.com", "amazon.com", "ebay.com", "yellowpages.com", "glassdoor.com",
-  "indeed.com", "wikipedia.org",
+  "indeed.com", "wikipedia.org", "turkishexporter.com.tr", "trendyol.com",
+  "exapro.biz.tr", "forinsightsconsultancy.com",
 ];
 
 const EDITORIAL_TITLE_PATTERNS = [
   /\b(en iyi|en büyük|top|best|liste|listesi|rehberi|guide)\b/i,
   /\b\d{1,3}\s+(üretici|şirket|firma|manufacturer|companies|firmen)\b/i,
   /\b(manufacturers? in|companies in|hersteller in)\b/i,
+  /\b(nedir|nasıl seçilir|fiyatları|pazar analizi|market analysis)\b/i,
+];
+
+const VENDOR_TITLE_PATTERNS = [
+  /\b(paketleme|ambalaj|dolum|etiketleme)\s+(makine(?:si|leri)?|makina(?:sı|ları)?)\b/i,
+  /\b(makine|makina)\s+(üreticisi|imalatı|tedarikçisi|satışı)\b/i,
+  /\b(otomasyon|robotik)\s+(çözümleri|sistemleri|firması)\b/i,
+  /\b(packaging|filling|labelling|labeling)\s+(machine|machines|equipment|systems?)\b/i,
+  /\b(abfüll|verpackungs|etikettier)maschinen?\b/i,
 ];
 
 const EDITORIAL_PATH_PATTERNS = [
@@ -79,7 +89,6 @@ export function buildSearchQueries(input: SearchInputs): string[] {
   const negative = "-inurl:blog -inurl:news -inurl:magazin -inurl:category -inurl:liste";
   const site = locale.siteSuffix ? `site:${locale.siteSuffix}` : "";
 
-  const product = input.productOrService.trim();
   const companyType = input.companyType?.trim();
   const queries = [
     `\"${sector}\" ${manufacturerTerm} ${region} ${negative}`,
@@ -87,32 +96,64 @@ export function buildSearchQueries(input: SearchInputs): string[] {
     `${sector} ${secondManufacturerTerm} ${region} ${negative}`,
     `${sector} ${secondCompanyTerm} ${region} Kontakt Impressum ${negative}`,
     `${sector} ${manufacturerTerm} ${region} ${site} ${negative}`,
-    `${sector} B2B ${region} ${site} ${negative}`,
-    `${sector} OEM ${region} ${site} ${negative}`,
-    `${sector} supplier customer company ${region} ${negative}`,
-    `${sector} applications industries ${region} ${site} ${negative}`,
-    `${sector} solutions systems ${region} ${negative}`,
+    `${sector} fabrika üretim tesisi ${region} ${site} ${negative}`,
+    `${sector} üretim imalat ${region} ${site} ${negative}`,
+    `${sector} markaları üretici ${region} ${negative}`,
+    `${sector} ihracatçı üretici ${region} ${negative}`,
+    `${sector} sanayi şirketleri ${region} ${site} ${negative}`,
     `${sector} contact about company ${region} ${site} ${negative}`,
-    `${sector} production engineering ${region} ${site} ${negative}`,
+    `${sector} production factory ${region} ${site} ${negative}`,
   ];
 
   if (companyType) {
+    // Serbest metnin tamamını tırnak içine almak sorguyu aşırı daraltıp
+    // "hedef değildir" gibi açıklamaları arama terimine dönüştürüyordu.
+    const conciseType = companyType.split(/[.;]/)[0]?.trim().slice(0, 120);
     queries.push(
-      `\"${companyType}\" ${sector} ${region} ${site} ${negative}`,
-      `${companyType} ${sector} ${region} contact ${negative}`
-    );
-  }
-
-  // Ürün sorgusu tek başına satıcıları getirir. Bu yüzden yalnızca hedef sektörle
-  // birlikte ve "uygulama/kullanım" bağlamında bir keşif sorgusu olarak kullanılır.
-  if (product) {
-    queries.push(
-      `\"${product}\" ${sector} application ${region} ${negative}`,
-      `${product} ${sector} integration ${region} ${site} ${negative}`
+      `${conciseType} ${sector} ${region} ${site} ${negative}`,
+      `${conciseType} ${sector} ${region} contact ${negative}`
     );
   }
 
   return Array.from(new Set(queries.map((q) => q.replace(/\s+/g, " ").trim()))).slice(0, 16);
+}
+
+export function validateSearchInputs(input: SearchInputs): string | null {
+  const sector = input.targetSector.trim().toLocaleLowerCase("tr-TR");
+  const region = input.targetRegion.trim().toLocaleLowerCase("tr-TR");
+  if (sector === region) {
+    return "Hedef sektör ile hedef bölge aynı olamaz. Örneğin sektör: 'Gıda ve içecek üretimi', bölge: 'Türkiye'.";
+  }
+  const regionAliases = LOCALES.flatMap((profile) => [...profile.aliases, profile.nativeRegion.toLocaleLowerCase("tr-TR")]);
+  if (regionAliases.some((alias) => sector === alias.toLocaleLowerCase("tr-TR"))) {
+    return "Hedef sektör alanına ülke/bölge yazılmış görünüyor. Bu alana 'Gıda ve içecek üretimi' gibi bir sektör yazın.";
+  }
+  return null;
+}
+
+function requestsEndBuyers(input: SearchInputs): boolean {
+  const text = `${input.companyType ?? ""} ${input.extraCriteria ?? ""}`.toLocaleLowerCase("tr-TR");
+  return /hedef değildir|hariç|dahil etme|ele/.test(text) &&
+    /makine üretici|makina üretici|distribütör|bayi|danışman|entegratör|perakende/.test(text);
+}
+
+export function assessBuyerDiscoveryResult(input: {
+  title: string;
+  snippet: string;
+  url: string;
+  domain: string;
+  occurrenceCount: number;
+  searchInputs: SearchInputs;
+}): { accepted: boolean; confidence: CompanyCandidate["discoveryConfidence"]; reason: string } {
+  const organic = assessOrganicResult(input);
+  if (!organic.accepted) return organic;
+
+  // Kullanıcı açıkça son kullanıcı/ürün üreticisi arıyorsa, ürünün satıcılarını
+  // pahalı kazıma ve AI aşamasına gelmeden engelle.
+  if (requestsEndBuyers(input.searchInputs) && VENDOR_TITLE_PATTERNS.some((pattern) => pattern.test(input.title))) {
+    return { accepted: false, confidence: "medium", reason: "Hedef alıcı yerine makine/otomasyon satıcısı görünen sonuç" };
+  }
+  return organic;
 }
 
 export function isBlockedDiscoveryDomain(domain: string): boolean {
@@ -151,7 +192,9 @@ export function assessOrganicResult(input: {
 
 export function displayNameFromResult(title: string, domain: string): string {
   const cleaned = title.split(/\s+[|–—-]\s+/)[0]?.trim();
-  if (cleaned && cleaned.length >= 2 && !EDITORIAL_TITLE_PATTERNS.some((p) => p.test(cleaned))) {
+  if (cleaned && cleaned.length >= 2 &&
+      !EDITORIAL_TITLE_PATTERNS.some((p) => p.test(cleaned)) &&
+      !VENDOR_TITLE_PATTERNS.some((p) => p.test(cleaned))) {
     return cleaned.slice(0, 120);
   }
   const brand = domain.split(".")[0].replace(/[-_]+/g, " ");
