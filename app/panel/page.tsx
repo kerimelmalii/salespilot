@@ -27,12 +27,7 @@ export default function PanelPage() {
 
   return (
     <div>
-      <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-        <div><p className="eyebrow">Genel bakış</p><h1 className="page-title">Satış çalışma alanınız</h1><p className="page-description">Aramalarınızı, nitelikli şirketleri ve takip listenizi tek yerden yönetin.</p></div>
-        <Link href="/panel/yeni-arama" className="primary-button inline-flex items-center justify-center gap-2"><Sparkles className="h-4 w-4"/>Yeni tarama</Link>
-      </div>
-
-      <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{cards.map(({ label, value, icon: Icon, note }) => <article key={label} className="surface-card p-5"><div className="flex items-center justify-between"><span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-blue-800"><Icon className="h-5 w-5"/></span><span className="text-xs text-slate-400">Tüm zamanlar</span></div><p className="mt-6 text-3xl font-semibold tracking-tight">{value}</p><p className="mt-1 text-sm font-medium text-slate-700">{label}</p><p className="mt-1 text-xs text-slate-400">{note}</p></article>)}</section>
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{cards.map(({ label, value, icon: Icon, note }) => <article key={label} className="surface-card p-5"><div className="flex items-center justify-between"><span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-blue-800"><Icon className="h-5 w-5"/></span><span className="text-xs text-slate-400">Tüm zamanlar</span></div><p className="mt-6 text-3xl font-semibold tracking-tight">{value}</p><p className="mt-1 text-sm font-medium text-slate-700">{label}</p><p className="mt-1 text-xs text-slate-400">{note}</p></article>)}</section>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.5fr_.8fr]">
         <section className="surface-card overflow-hidden">

@@ -18,8 +18,18 @@ const accountNavigation = [
   { href: "/panel/ayarlar", label: "Ayarlar", icon: Settings },
 ];
 
+const workspaceTitles: Record<string, { title: string; eyebrow: string }> = {
+  "/panel": { title: "Satış çalışma alanınız", eyebrow: "Genel bakış" },
+  "/panel/yeni-arama": { title: "Yeni hedef araması", eyebrow: "Şirket keşfi" },
+  "/panel/gecmis": { title: "Geçmiş aramalar", eyebrow: "Arama geçmişi" },
+  "/panel/kaydedilenler": { title: "Kaydedilen lead'ler", eyebrow: "Takip listesi" },
+  "/panel/profil": { title: "Profil", eyebrow: "Hesabınız" },
+  "/panel/ayarlar": { title: "Ayarlar", eyebrow: "Tercihler" },
+};
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const workspaceTitle = workspaceTitles[pathname] ?? workspaceTitles["/panel"];
   const [profileName, setProfileName] = useState("SalesPilot Kullanıcısı");
 
   useEffect(() => {
@@ -46,7 +56,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const sidebar = (
     <div className="sidebar-shell">
       <div className="sidebar-brand">
-        <Link href="/panel" className="flex items-center gap-3 font-semibold tracking-tight"><span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-950 text-xs text-white shadow-sm shadow-blue-950/20">SP</span><span>SalesPilot</span></Link>
+        <Link href="/panel" className="flex items-center gap-3 font-semibold tracking-tight"><span className="sidebar-logo-mark"><i/><i/><i/></span><span>SalesPilot</span></Link>
       </div>
       <Link href="/panel/yeni-arama" className="uniform-action-button sidebar-primary-action"><Sparkles className="h-4 w-4" />Yeni tarama başlat</Link>
 
@@ -73,8 +83,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-[#f7f9fd] text-slate-950">
       <aside className="app-sidebar-desktop fixed inset-y-0 left-0 z-30">{sidebar}</aside>
       <div className="app-main-content">
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200/80 bg-[#f7f9fd]/90 px-5 backdrop-blur lg:px-8">
-          <p className="text-xs font-medium text-slate-400">Alıcı zekâsı çalışma alanı</p>
+        <header className="workspace-header sticky top-0 z-20 flex items-center justify-between border-b border-slate-200/80 bg-[#f7f9fd]/90 px-5 backdrop-blur lg:px-8">
+          <div><p className="text-[10px] font-semibold uppercase tracking-[.18em] text-blue-600">{workspaceTitle.eyebrow}</p><p className="mt-1 text-lg font-semibold tracking-tight text-slate-900">{workspaceTitle.title}</p></div>
           <div className="flex items-center gap-2 text-xs text-slate-500"><span className="h-2 w-2 rounded-full bg-blue-500"/>Sistem hazır</div>
         </header>
         <div className="mx-auto max-w-[1440px] px-5 py-7 lg:px-8 lg:py-9">{children}</div>

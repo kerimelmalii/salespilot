@@ -14,7 +14,7 @@ import type {
 import { isOptedOut, markOptedOut } from "@/lib/opt-out";
 import { readProfile, readSavedLeads, saveHistoryItem, toggleSavedLead } from "@/lib/salespilot/workspace-storage";
 import { MarketingHeader } from "@/components/marketing-header";
-import { ProductCarousel } from "@/components/product-carousel";
+import { ProductStory } from "@/components/product-story";
 
 type RowStatus = "idle" | "researching" | "scoring" | "done" | "error";
 type EmailStatus = "idle" | "drafting" | "ready" | "approved" | "sending" | "sent" | "error";
@@ -890,7 +890,7 @@ export default function Home() {
       </section>
 
       <section id="vitrin" className="border-y border-blue-100 bg-white py-20 lg:py-28">
-        <div className="mx-auto max-w-7xl px-5 lg:px-8"><div className="mx-auto mb-12 max-w-3xl text-center"><p className="text-xs font-semibold uppercase tracking-[.2em] text-blue-600">SalesPilot nasıl çalışır?</p><h2 className="mt-4 text-3xl font-semibold tracking-[-.04em] sm:text-5xl">Ürünün bütün hikâyesi, tek bir akışta.</h2><p className="mt-5 text-base leading-7 text-slate-500">Manuel müşteri aramanın yarattığı karmaşadan; şirketleri araştıran, puanlayan ve iletişime hazırlayan modern bir satış sistemine geçin.</p></div><ProductCarousel /></div>
+        <div className="mx-auto max-w-7xl px-5 lg:px-8"><ProductStory /></div>
       </section>
 
       <section id="urun" className="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-28">

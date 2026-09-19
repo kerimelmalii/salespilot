@@ -152,6 +152,48 @@ html {
   padding: 0 .5rem;
 }
 
+.sidebar-logo-mark {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  align-items: end;
+  justify-content: center;
+  gap: 3px;
+  border-radius: 12px;
+  background: #2563eb;
+  padding: 8px;
+  box-shadow: 0 8px 20px -12px rgba(37, 99, 235, .7);
+}
+
+.sidebar-logo-mark i {
+  display: block;
+  width: 4px;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.sidebar-logo-mark i:nth-child(1) { height: 9px; opacity: .75; }
+.sidebar-logo-mark i:nth-child(2) { height: 16px; opacity: .9; }
+.sidebar-logo-mark i:nth-child(3) { height: 23px; }
+
+.workspace-header {
+  min-height: 84px;
+}
+
+.analysis-tone {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 10px;
+}
+
+.analysis-tone-blue { background: #eff6ff; color: #2563eb; }
+.analysis-tone-purple { background: #f5f3ff; color: #7c3aed; }
+.analysis-tone-orange { background: #fff7ed; color: #ea580c; }
+.analysis-tone-violet { background: #faf5ff; color: #9333ea; }
+.analysis-tone-rose { background: #fff1f2; color: #e11d48; }
+
 .sidebar-primary-action {
   display: flex;
   min-height: 48px;
