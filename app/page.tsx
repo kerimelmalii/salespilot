@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { Bookmark, CheckCircle2, Database, ShieldCheck, Workflow } from "lucide-react";
+import { useEffect, useState } from "react";
 import type {
   CompanyResearch,
   ScoreBreakdown,
@@ -11,6 +12,7 @@ import type {
   CompanyCandidate,
 } from "@/lib/salespilot/types";
 import { isOptedOut, markOptedOut } from "@/lib/opt-out";
+import { readProfile, readSavedLeads, saveHistoryItem, toggleSavedLead } from "@/lib/salespilot/workspace-storage";
 
 type RowStatus = "idle" | "researching" | "scoring" | "done" | "error";
 type EmailStatus = "idle" | "drafting" | "ready" | "approved" | "sending" | "sent" | "error";
@@ -67,7 +69,7 @@ interface CompanyRow extends CompanyCandidate {
  * (ara -> araştır -> puanla) doğrulamak için. Nihai "Yeni Tarama" ekranının
  * tasarımı Faz 2'de, mockup'larla uyumlu şekilde ayrıca yapılacak.
  */
-export function Dashboard() {
+export function Dashboard({ embedded = false }: { embedded?: boolean }) {
   const [userCompanyName, setUserCompanyName] = useState("");
   const [userWebsite, setUserWebsite] = useState("");
   const [targetSector, setTargetSector] = useState("");
@@ -76,6 +78,8 @@ export function Dashboard() {
   const [companyType, setCompanyType] = useState("");
   const [extraCriteria, setExtraCriteria] = useState("");
   const [scoreThreshold, setScoreThreshold] = useState(75);
+  const [currentSearchId, setCurrentSearchId] = useState<string | null>(null);
+  const [savedDomains, setSavedDomains] = useState<Set<string>>(() => new Set());
 
   const [searching, setSearching] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -87,6 +91,13 @@ export function Dashboard() {
     searchRequests: number;
     rejectedCount: number;
   } | null>(null);
+
+  useEffect(() => {
+    const profile = readProfile();
+    setUserCompanyName((value) => value || profile.companyName);
+    setUserWebsite((value) => value || profile.website);
+    setSavedDomains(new Set(readSavedLeads().map((lead) => lead.domain)));
+  }, []);
 
   function buildScanRequest(): ScanRequest {
     return {
@@ -125,6 +136,8 @@ export function Dashboard() {
       if (!res.ok) {
         setSearchError(data.error ?? "Bilinmeyen hata.");
       } else {
+        const searchId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        setCurrentSearchId(searchId);
         setSearchSummary({
           targetCount: data.targetCount,
           targetReached: data.targetReached,
@@ -138,6 +151,14 @@ export function Dashboard() {
             emailStatus: "idle" as EmailStatus,
           }))
         );
+        saveHistoryItem({
+          id: searchId,
+          createdAt: new Date().toISOString(),
+          request: buildScanRequest(),
+          discovered: data.companies.length,
+          qualified: 0,
+          status: "discovered",
+        });
       }
     } catch (err) {
       setSearchError(err instanceof Error ? err.message : "Bilinmeyen hata.");
@@ -154,7 +175,7 @@ export function Dashboard() {
     row: CompanyRow,
     scanRequest: ScanRequest,
     extraCriteriaRubric: ExtraCriterion[]
-  ) {
+  ): Promise<boolean> {
     updateRow(row.domain, { status: "researching", errorMessage: undefined });
 
     try {
@@ -181,11 +202,13 @@ export function Dashboard() {
       if (!scoreRes.ok) throw new Error(scoreData.error ?? "Puanlama hatası");
 
       updateRow(row.domain, { status: "done", score: scoreData.score });
+      return scoreData.score.reviewStatus === "qualified";
     } catch (err) {
       updateRow(row.domain, {
         status: "error",
         errorMessage: err instanceof Error ? err.message : "Bilinmeyen hata",
       });
+      return false;
     }
   }
 
@@ -216,16 +239,30 @@ export function Dashboard() {
     // 50+ adayda tamamen seri işleme gereksiz yavaş kalır. Üç worker ile
     // kontrollü paralellik kullanarak API hız limitlerini zorlamadan işleriz.
     let cursor = 0;
+    let qualifiedCount = 0;
     const workers = Array.from({ length: Math.min(3, rows.length) }, async () => {
       while (cursor < rows.length) {
         const row = rows[cursor];
         cursor += 1;
         // eslint-disable-next-line no-await-in-loop
-        await processCompany(row, scanRequest, extraCriteriaRubric);
+        const qualified = await processCompany(row, scanRequest, extraCriteriaRubric);
+        if (qualified) qualifiedCount += 1;
       }
     });
     await Promise.all(workers);
+    if (currentSearchId) {
+      saveHistoryItem({ id: currentSearchId, createdAt: new Date().toISOString(), request: scanRequest, discovered: rows.length, qualified: qualifiedCount, status: "completed" });
+    }
     setProcessing(false);
+  }
+
+  function handleSaveLead(row: CompanyRow) {
+    const saved = toggleSavedLead(row, { score: row.score?.totalScore, sector: targetSector, region: targetRegion });
+    setSavedDomains((current) => {
+      const next = new Set(current);
+      if (saved) next.add(row.domain); else next.delete(row.domain);
+      return next;
+    });
   }
 
   async function handleDraftEmail(row: CompanyRow) {
@@ -349,8 +386,8 @@ export function Dashboard() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f7f6] text-slate-950">
-      <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur">
+    <main className={embedded ? "text-slate-950" : "min-h-screen bg-[#f5f7f6] text-slate-950"}>
+      {!embedded ? <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8">
           <Link href="/" className="flex items-center gap-3 font-semibold tracking-tight">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-950 text-sm text-white">SP</span>
@@ -361,9 +398,9 @@ export function Dashboard() {
             <span className="h-2 w-2 rounded-full bg-emerald-500" /> Sistem hazır
           </div>
         </div>
-      </header>
+      </header> : null}
 
-      <div className="mx-auto max-w-7xl px-5 py-8 lg:px-8 lg:py-10">
+      <div className={embedded ? "" : "mx-auto max-w-7xl px-5 py-8 lg:px-8 lg:py-10"}>
         <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Yeni tarama</p>
@@ -556,6 +593,9 @@ export function Dashboard() {
                   </div>
 
                   <div className="text-right">
+                    <button type="button" onClick={() => handleSaveLead(row)} className={`mb-3 ml-auto grid h-8 w-8 place-items-center rounded-lg border transition ${savedDomains.has(row.domain) ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-400 hover:bg-slate-50"}`} aria-label={savedDomains.has(row.domain) ? "Kayıttan kaldır" : "Lead'i kaydet"} title={savedDomains.has(row.domain) ? "Kayıttan kaldır" : "Lead'i kaydet"}>
+                      <Bookmark className="h-4 w-4" fill={savedDomains.has(row.domain) ? "currentColor" : "none"} />
+                    </button>
                     {row.status === "idle" && (
                       <span className="text-xs text-neutral-400">Bekliyor</span>
                     )}
@@ -800,6 +840,12 @@ const proofItems = [
   ["03", "Puanlar", "Her eşleşmeyi açık gerekçeler ve doğrulanabilir kanıtlarla değerlendirir."],
 ];
 
+const capabilityItems = [
+  { icon: Database, title: "Dağınık sonuç değil, temiz hedef havuzu", text: "Farklı sorguları tek bir aday havuzunda birleştirir; dizinleri, yinelenen kayıtları ve ilgisiz sayfaları ayıklar." },
+  { icon: ShieldCheck, title: "Her puanın arkasında kanıt", text: "Şirket sitesi, faaliyet alanı, alıcı rolü ve bölge sinyalleri doğrulanmadan yüksek puan verilmez." },
+  { icon: Workflow, title: "Araştırmadan aksiyona tek akış", text: "Lead'i kaydedin, gerekçesini inceleyin, iletişim taslağını onaylayın ve sonucu takip edin." },
+];
+
 export default function Home() {
   return (
     <main className="marketing-page min-h-screen overflow-hidden bg-[#f7f8f5] text-[#10221b]">
@@ -809,6 +855,7 @@ export default function Home() {
           SalesPilot
         </Link>
         <div className="hidden items-center gap-8 text-sm text-slate-600 md:flex">
+          <a href="#urun" className="hover:text-slate-950">Ürün</a>
           <a href="#nasil-calisir" className="hover:text-slate-950">Nasıl çalışır?</a>
           <a href="#neden" className="hover:text-slate-950">Neden SalesPilot?</a>
         </div>
@@ -853,11 +900,26 @@ export default function Home() {
         </div>
       </section>
 
+      <section id="urun" className="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-28">
+        <div className="grid gap-10 lg:grid-cols-[.75fr_1.25fr] lg:items-end">
+          <div><p className="text-xs font-semibold uppercase tracking-[.2em] text-emerald-700">Alıcı zekâsı</p><h2 className="mt-4 text-3xl font-semibold tracking-[-.04em] sm:text-5xl">Listenin ötesinde bir karar sistemi.</h2></div>
+          <p className="max-w-2xl text-base leading-8 text-slate-500">SalesPilot yalnızca şirket isimleri toplamaz. Hangi şirketin neden gerçek bir fırsat olduğunu, hangi kanıta dayandığını ve nerede insan kontrolü gerektiğini gösterir.</p>
+        </div>
+        <div className="mt-14 grid gap-5 lg:grid-cols-3">{capabilityItems.map(({ icon: Icon, title, text }) => <article key={title} className="rounded-2xl border border-emerald-950/10 bg-white p-7 shadow-[0_20px_50px_-40px_rgba(16,50,36,.45)]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-50 text-emerald-800"><Icon className="h-5 w-5"/></span><h3 className="mt-8 text-xl font-semibold tracking-tight">{title}</h3><p className="mt-3 text-sm leading-6 text-slate-500">{text}</p></article>)}</div>
+      </section>
+
       <section id="nasil-calisir" className="border-y border-emerald-950/10 bg-white py-20">
         <div className="mx-auto max-w-7xl px-5 lg:px-8">
           <p className="text-xs font-semibold uppercase tracking-[.2em] text-emerald-700">Nasıl çalışır?</p>
           <div className="mt-4 grid gap-10 md:grid-cols-[.8fr_1.2fr]"><h2 className="text-3xl font-semibold tracking-[-.035em] sm:text-4xl">Aramadan karara,<br/>tek bir akış.</h2><p className="max-w-xl leading-7 text-slate-500">Klasik listeler şirket adı verir. SalesPilot ise o şirketin gerçekten alıcı olup olmadığını açıklayan bir karar zemini oluşturur.</p></div>
           <div className="mt-14 grid gap-5 md:grid-cols-3">{proofItems.map(([number, title, text]) => <article key={number} className="rounded-2xl border border-slate-200 bg-[#fafbf9] p-6"><span className="text-xs font-semibold text-emerald-700">{number}</span><h3 className="mt-10 text-xl font-semibold">{title}</h3><p className="mt-3 text-sm leading-6 text-slate-500">{text}</p></article>)}</div>
+        </div>
+      </section>
+
+      <section className="bg-[#eef3ee] py-20">
+        <div className="mx-auto grid max-w-7xl gap-12 px-5 lg:grid-cols-2 lg:px-8">
+          <div><p className="text-xs font-semibold uppercase tracking-[.2em] text-emerald-700">Neden farklı?</p><h2 className="mt-4 text-3xl font-semibold tracking-[-.04em] sm:text-4xl">Yapay zekâ karar verirken nedenini de gösterir.</h2><p className="mt-5 max-w-xl leading-7 text-slate-500">Eksik veriye yüksek puan vermek yerine belirsizliği görünür kılar. Böylece satış ekibi kara kutu puanlara değil, incelenebilir kanıtlara göre hareket eder.</p></div>
+          <div className="rounded-2xl border border-emerald-950/10 bg-white p-6 sm:p-8">{["Alıcı rolü doğrulaması", "Rakip ve tedarikçi elemesi", "Kaynak bağlantılı puan gerekçesi", "Düşük güvenli sonuçlarda insan incelemesi", "İletişim öncesinde açık kullanıcı onayı"].map((item) => <p key={item} className="flex items-center gap-3 border-b border-slate-100 py-4 text-sm font-medium text-slate-700 last:border-0"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-700"/>{item}</p>)}</div>
         </div>
       </section>
 

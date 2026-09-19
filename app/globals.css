@@ -18,6 +18,38 @@ html {
   scroll-behavior: smooth;
 }
 
+.eyebrow {
+  margin-bottom: .5rem;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: #27805d;
+}
+
+.page-title {
+  font-size: clamp(1.8rem, 4vw, 2.45rem);
+  line-height: 1.1;
+  font-weight: 650;
+  letter-spacing: -.04em;
+  color: #0f2019;
+}
+
+.page-description {
+  margin-top: .65rem;
+  max-width: 42rem;
+  font-size: .9rem;
+  line-height: 1.6;
+  color: #64748b;
+}
+
+.surface-card {
+  border: 1px solid #e2e8e5;
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 18px 50px -42px rgba(15, 23, 42, .45);
+}
+
 .field-label {
   display: block;
   margin-bottom: 0.45rem;
