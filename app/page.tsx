@@ -858,8 +858,8 @@ export default function Home() {
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-900/10 bg-white px-3 py-1.5 text-xs font-medium text-blue-900 shadow-sm">
             <span className="h-2 w-2 rounded-full bg-blue-500" /> Yapay zekâ destekli B2B satış zekâsı
           </div>
-          <h1 className="max-w-3xl text-5xl font-semibold leading-[1.02] tracking-[-0.055em] sm:text-6xl lg:text-[76px]">
-            Daha çok şirket değil, <span className="text-[#2563eb]">doğru müşteri.</span>
+          <h1 className="max-w-3xl text-5xl font-semibold leading-[1.02] tracking-[-0.055em] sm:text-6xl lg:text-[72px]">
+            Ekibiniz araştırmaya değil, <span className="text-[#2563eb]">satışa zaman ayırsın.</span>
           </h1>
           <p className="mt-7 max-w-xl text-lg leading-8 text-slate-600">
             SalesPilot hedef pazarınızı tarar, gerçek alıcıları doğrular ve ekibinizin harekete geçebileceği nitelikli fırsatlara dönüştürür.
