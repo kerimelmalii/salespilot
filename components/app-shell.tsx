@@ -48,7 +48,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex h-20 items-center px-5">
         <Link href="/panel" className="flex items-center gap-3 font-semibold tracking-tight"><span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-950 text-xs text-white">SP</span>SalesPilot</Link>
       </div>
-      <div className="px-3"><Link href="/panel/yeni-arama" className="flex items-center justify-center gap-2 rounded-xl bg-blue-950 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-950/10 transition hover:-translate-y-0.5"><Sparkles className="h-4 w-4" />Yeni tarama başlat</Link></div>
+      <div className="px-3"><Link href="/panel/yeni-arama" className="uniform-action-button flex items-center justify-center gap-2 bg-blue-950 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-950/10 transition hover:-translate-y-0.5"><Sparkles className="h-4 w-4" />Yeni tarama başlat</Link></div>
       <nav className="mt-6 space-y-1 px-3">{nav(navigation)}</nav>
       <div className="mt-auto border-t border-slate-100 p-3">
         <nav className="space-y-1">{nav(accountNavigation)}</nav>

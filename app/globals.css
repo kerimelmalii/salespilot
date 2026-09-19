@@ -115,7 +115,8 @@ html {
 }
 
 .marketing-login-button,
-.marketing-cta-button {
+.marketing-cta-button,
+.uniform-action-button {
   display: inline-flex;
   min-height: 44px;
   align-items: center;
