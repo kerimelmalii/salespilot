@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { assessOrganicResult, buildSearchQueries, resolveSearchLocale } from "../discovery";
+import {
+  assessBuyerDiscoveryResult,
+  assessOrganicResult,
+  buildSearchQueries,
+  resolveSearchLocale,
+  validateSearchInputs,
+} from "../discovery";
 import { emailMatchesCompanyDomain } from "../scraping";
 import { finalizeLeadScore, type ModelScore } from "../classification";
 import type { CompanyResearch, CriterionScore, ScanRequest } from "../types";
@@ -66,6 +72,41 @@ describe("aday keşfi", () => {
     expect(assessOrganicResult({ title: "Makine Üretimi Almanya", url: "https://europages.com.tr/x", domain: "europages.com.tr", occurrenceCount: 3 }).accepted).toBe(false);
     expect(assessOrganicResult({ title: "Almanya'daki En İyi 15 CNC Üreticisi", url: "https://example.com/blog/top-cnc", domain: "example.com", occurrenceCount: 1 }).accepted).toBe(false);
   });
+
+  it("sektör alanına bölge yazıldığında aramayı başlamadan durdurur", () => {
+    expect(validateSearchInputs({ ...scanRequest, targetSector: "Türkiye", targetRegion: "Türkiye" }))
+      .toContain("aynı olamaz");
+    expect(validateSearchInputs({ ...scanRequest, targetSector: "Almanya", targetRegion: "Berlin" }))
+      .toContain("ülke/bölge");
+  });
+
+  it("son kullanıcı hedefinde makine satıcısı sayfalarını ön filtrede eler", () => {
+    const endBuyerSearch = {
+      ...scanRequest,
+      targetSector: "Gıda ve içecek üretimi",
+      targetRegion: "Türkiye",
+      productOrService: "Otomatik paketleme ve dolum makineleri",
+      companyType: "Paketli gıda üreticileri. Makine üreticileri, distribütörler ve danışmanlar hedef değildir.",
+    };
+    const result = assessBuyerDiscoveryResult({
+      title: "Paketleme Makinesi Üreticisi",
+      snippet: "Gıda firmalarına otomasyon çözümleri sunar.",
+      url: "https://packplus.com.tr/",
+      domain: "packplus.com.tr",
+      occurrenceCount: 3,
+      searchInputs: endBuyerSearch,
+    });
+    expect(result.accepted).toBe(false);
+    expect(result.reason).toContain("satıcısı");
+  });
+
+  it("ürün adını keşif sorgularına koyup satıcıları çağırmaz", () => {
+    const queries = buildSearchQueries({
+      ...scanRequest,
+      productOrService: "Otomatik paketleme ve dolum makineleri",
+    });
+    expect(queries.some((query) => query.includes("Otomatik paketleme ve dolum makineleri"))).toBe(false);
+  });
 });
 
 describe("ticari rol ve güven", () => {
@@ -128,6 +169,52 @@ describe("ticari rol ve güven", () => {
     expect(result.reviewStatus).toBe("disqualified");
     expect(result.sectorFit.awardedPoints).toBeLessThanOrEqual(5);
     expect(result.productFit.awardedPoints).toBeLessThanOrEqual(5);
+  });
+
+  it("son kullanıcı hedefinde sistem entegratörünü model yüksek puanlasa bile diskalifiye eder", () => {
+    const endBuyerRequest: ScanRequest = {
+      ...scanRequest,
+      targetSector: "Gıda ve içecek üretimi",
+      targetRegion: "Türkiye",
+      companyType: "Türkiye’de aktif üretim tesisi bulunan paketli gıda üreticileri. Makine üreticileri, distribütörler ve danışmanlar hedef değildir.",
+    };
+    const integrator: CompanyResearch = {
+      ...baseResearch,
+      companyName: "ATC Process",
+      buyerRole: "system_integrator",
+      relationshipSignals: {
+        sellsSameOffering: "no",
+        usesOfferingInProductsOrOperations: "yes",
+        relationshipReason: "Gıda fabrikaları kurar ve makineleri projelerine entegre eder.",
+        evidenceRefs: ["ev_1"],
+      },
+    };
+    const result = finalizeLeadScore({ ...modelScore, isPlausibleLead: true }, integrator, endBuyerRequest);
+    expect(result.reviewStatus).toBe("disqualified");
+    expect(result.qualified).toBe(false);
+    expect(result.totalScore).toBeLessThan(30);
+  });
+
+  it("aynı ürünü satan entegratörü son kullanıcı hedefinde kesin rakip olarak eler", () => {
+    const request: ScanRequest = {
+      ...scanRequest,
+      targetSector: "Gıda ve içecek üretimi",
+      targetRegion: "Türkiye",
+      companyType: "Aktif üretim tesisi bulunan paketli ürün üreticileri. Makine üreticileri, distribütörler ve danışmanlar hedef değildir.",
+    };
+    const atcLike: CompanyResearch = {
+      ...baseResearch,
+      buyerRole: "system_integrator",
+      relationshipSignals: {
+        sellsSameOffering: "yes",
+        usesOfferingInProductsOrOperations: "yes",
+        relationshipReason: "Dolum ve paketleme makinelerini kendi anahtar teslim projelerinde satar.",
+        evidenceRefs: ["ev_1"],
+      },
+    };
+    const result = finalizeLeadScore({ ...modelScore, isPlausibleLead: true }, atcLike, request);
+    expect(result.reviewStatus).toBe("disqualified");
+    expect(result.isPlausibleLead).toBe(false);
   });
 });
 
