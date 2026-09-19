@@ -16,8 +16,8 @@ export function MarketingHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/90 backdrop-blur-xl">
-      <div className="mx-auto grid h-[72px] max-w-7xl grid-cols-[1fr_auto] items-center gap-4 px-5 lg:grid-cols-[1fr_auto_1fr] lg:px-8">
-        <Link href="/" className="flex w-fit items-center gap-2.5 text-[17px] font-semibold tracking-[-0.02em] text-slate-950">
+      <div className="mx-auto grid h-[72px] max-w-7xl grid-cols-2 items-center gap-4 px-5 lg:grid-cols-3 lg:px-8">
+        <Link href="/" className="flex w-fit items-center gap-2.5 justify-self-start text-[17px] font-semibold tracking-[-0.02em] text-slate-950">
           <span className="flex h-9 w-9 items-end justify-center gap-[3px] rounded-[10px] bg-blue-600 px-2 py-1.5 shadow-sm shadow-blue-600/25">
             <i className="h-2 w-1 rounded-[2px] bg-white/75" />
             <i className="h-3.5 w-1 rounded-[2px] bg-white/90" />
@@ -26,7 +26,7 @@ export function MarketingHeader() {
           SalesPilot
         </Link>
 
-        <nav aria-label="Ana menü" className="hidden items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-50/80 p-1 text-sm font-medium text-slate-600 shadow-sm lg:flex">
+        <nav aria-label="Ana menü" className="hidden items-center gap-1 justify-self-center whitespace-nowrap rounded-xl border border-slate-200/80 bg-slate-50/80 p-1 text-sm font-medium text-slate-600 shadow-sm lg:flex">
           {links.map((link) => (
             <Link key={link.href} href={link.href} className="rounded-lg px-3.5 py-2 transition-colors hover:bg-white hover:text-blue-700 hover:shadow-sm">
               {link.label}
