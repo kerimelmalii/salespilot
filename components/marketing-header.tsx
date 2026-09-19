@@ -16,7 +16,7 @@ export function MarketingHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/90 backdrop-blur-xl">
-      <div className="mx-auto grid h-[72px] max-w-7xl grid-cols-2 items-center gap-4 px-5 lg:grid-cols-3 lg:px-8">
+      <div className="marketing-header-row mx-auto max-w-7xl px-5 lg:px-8">
         <Link href="/" className="flex w-fit items-center gap-2.5 justify-self-start text-[17px] font-semibold tracking-[-0.02em] text-slate-950">
           <span className="flex h-9 w-9 items-end justify-center gap-[3px] rounded-[10px] bg-blue-600 px-2 py-1.5 shadow-sm shadow-blue-600/25">
             <i className="h-2 w-1 rounded-[2px] bg-white/75" />
@@ -26,7 +26,7 @@ export function MarketingHeader() {
           SalesPilot
         </Link>
 
-        <nav aria-label="Ana menü" className="hidden items-center gap-1 justify-self-center whitespace-nowrap rounded-xl border border-slate-200/80 bg-slate-50/80 p-1 text-sm font-medium text-slate-600 shadow-sm lg:flex">
+        <nav aria-label="Ana menü" className="marketing-desktop-nav items-center gap-1 whitespace-nowrap rounded-xl border border-slate-200/80 bg-slate-50/80 p-1 text-sm font-medium text-slate-600 shadow-sm">
           {links.map((link) => (
             <Link key={link.href} href={link.href} className="rounded-lg px-3.5 py-2 transition-colors hover:bg-white hover:text-blue-700 hover:shadow-sm">
               {link.label}
@@ -34,7 +34,7 @@ export function MarketingHeader() {
           ))}
         </nav>
 
-        <div className="hidden items-center justify-end gap-2 lg:flex">
+        <div className="marketing-desktop-actions items-center justify-end gap-2">
           <Link href="/giris?next=/panel" className="rounded-lg px-3.5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950">
             Giriş yap
           </Link>
@@ -46,7 +46,7 @@ export function MarketingHeader() {
         <button
           type="button"
           onClick={() => setOpen((current) => !current)}
-          className="justify-self-end rounded-lg border border-slate-200 bg-white p-2.5 text-slate-700 shadow-sm lg:hidden"
+          className="marketing-mobile-toggle justify-self-end rounded-lg border border-slate-200 bg-white p-2.5 text-slate-700 shadow-sm"
           aria-label={open ? "Menüyü kapat" : "Menüyü aç"}
           aria-expanded={open}
         >

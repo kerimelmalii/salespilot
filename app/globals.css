@@ -95,3 +95,43 @@ html {
   background: #dbeafe;
   color: #071b3c;
 }
+
+.marketing-header-row {
+  display: grid;
+  min-height: 72px;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 1rem;
+}
+
+.marketing-desktop-nav,
+.marketing-desktop-actions {
+  display: none;
+}
+
+.marketing-mobile-toggle {
+  display: inline-flex;
+}
+
+@media (min-width: 1024px) {
+  .marketing-header-row {
+    grid-template-columns: 1fr auto 1fr;
+  }
+
+  .marketing-desktop-nav,
+  .marketing-desktop-actions {
+    display: flex;
+  }
+
+  .marketing-desktop-nav {
+    justify-self: center;
+  }
+
+  .marketing-desktop-actions {
+    justify-self: end;
+  }
+
+  .marketing-mobile-toggle {
+    display: none;
+  }
+}
