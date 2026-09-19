@@ -8,6 +8,7 @@ const links = [
   { href: "/#urun", label: "Ürün" },
   { href: "/#nasil-calisir", label: "Nasıl çalışır?" },
   { href: "/fiyatlandirma", label: "Fiyatlandırma" },
+  { href: "/blog", label: "Blog" },
   { href: "/hakkimizda", label: "Hakkımızda" },
 ];
 

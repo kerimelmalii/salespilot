@@ -848,6 +848,12 @@ const capabilityItems = [
   { icon: Workflow, title: "Araştırmadan aksiyona tek akış", text: "Lead'i kaydedin, gerekçesini inceleyin, iletişim taslağını onaylayın ve sonucu takip edin." },
 ];
 
+const blogPosts = [
+  { category: "Hedefleme", title: "Doğru B2B hedef kitle nasıl belirlenir?", text: "Sektör, bölge ve ürün bilgisini gerçek bir alıcı profiline dönüştürmenin temel adımları.", readTime: "6 dk" },
+  { category: "Satış zekâsı", title: "Şirket listesi değil, satış kararı", text: "Kalabalık aday listeleri yerine kanıta dayalı ve harekete geçirilebilir fırsatlar oluşturmak.", readTime: "5 dk" },
+  { category: "Yapay zekâ", title: "Lead puanı ne zaman güvenilirdir?", text: "Bir puanın arkasında hangi verilerin, kontrollerin ve insan değerlendirmesinin bulunması gerekir?", readTime: "7 dk" },
+];
+
 export default function Home() {
   return (
     <main className="marketing-page min-h-screen overflow-hidden bg-[#f7f9fd] text-[#0f172a]">
@@ -929,7 +935,27 @@ export default function Home() {
 
       <section id="neden" className="mx-auto max-w-7xl px-5 py-20 lg:px-8"><div className="rounded-2xl bg-[#071b3c] px-6 py-14 text-center text-white sm:px-12"><p className="text-sm text-blue-200">Satış araştırmasını yeniden düşünün.</p><h2 className="mx-auto mt-4 max-w-2xl text-3xl font-semibold tracking-[-.04em] sm:text-5xl">Ekibiniz araştırmaya değil, satışa zaman ayırsın.</h2><Link href="/kayit?plan=demo" className="mt-8 inline-flex rounded-lg bg-white px-6 py-3.5 text-sm font-semibold text-[#071b3c]">Ücretsiz demo başlat →</Link></div></section>
 
-      <footer className="border-t border-slate-200 bg-white"><div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr] lg:px-8"><div><p className="text-lg font-semibold text-slate-900">SalesPilot</p><p className="mt-3 max-w-sm text-sm leading-6 text-slate-500">Doğru şirketi keşfedin, kanıtlarla değerlendirin ve satış fırsatına dönüştürün.</p></div><div><p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Ürün</p><div className="mt-4 space-y-3 text-sm text-slate-500"><Link className="block hover:text-blue-600" href="/#nasil-calisir">Nasıl çalışır?</Link><Link className="block hover:text-blue-600" href="/fiyatlandirma">Fiyatlandırma</Link><Link className="block hover:text-blue-600" href="/kayit?plan=demo">Ücretsiz demo</Link></div></div><div><p className="text-xs font-semibold uppercase tracking-widest text-slate-400">SalesPilot</p><div className="mt-4 space-y-3 text-sm text-slate-500"><Link className="block hover:text-blue-600" href="/hakkimizda">Hakkımızda</Link><Link className="block hover:text-blue-600" href="/giris?next=/panel">Giriş yap</Link></div></div></div><div className="border-t border-slate-100"><div className="mx-auto flex max-w-7xl flex-col justify-between gap-3 px-5 py-6 text-xs text-slate-400 sm:flex-row lg:px-8"><span>© 2026 SalesPilot</span><span>Daha akıllı satış. Daha doğru fırsat.</span></div></div></footer>
+      <section className="border-t border-slate-200 bg-white py-20 lg:py-28">
+        <div className="mx-auto max-w-7xl px-5 lg:px-8">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+            <div><p className="text-xs font-semibold uppercase tracking-[.2em] text-blue-700">Blog</p><h2 className="mt-4 text-3xl font-semibold tracking-[-.04em] sm:text-5xl">Satışa dair daha net fikirler.</h2></div>
+            <Link href="/blog" className="text-sm font-semibold text-blue-700 transition hover:text-blue-900">Tüm yazıları gör →</Link>
+          </div>
+          <div className="mt-12 grid gap-5 lg:grid-cols-3">
+            {blogPosts.map((post, index) => (
+              <Link key={post.title} href="/blog" className="group flex min-h-72 flex-col rounded-2xl border border-slate-200 bg-[#f8faff] p-7 transition duration-200 hover:-translate-y-1 hover:border-blue-200 hover:bg-white hover:shadow-[0_24px_60px_-45px_rgba(37,99,235,.55)]">
+                <div className="flex items-center justify-between text-xs"><span className="font-semibold uppercase tracking-[.14em] text-blue-700">{post.category}</span><span className="text-slate-400">{post.readTime}</span></div>
+                <h3 className="mt-10 text-xl font-semibold leading-7 tracking-tight text-slate-950">{post.title}</h3>
+                <p className="mt-4 text-sm leading-6 text-slate-500">{post.text}</p>
+                <span className="mt-auto pt-8 text-sm font-semibold text-slate-700 transition group-hover:text-blue-700">Yazıyı oku <span aria-hidden="true">→</span></span>
+                <span className="sr-only">Blog yazısı {index + 1}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-slate-200 bg-white"><div className="mx-auto grid max-w-7xl gap-10 px-5 py-12 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr] lg:px-8"><div><p className="text-lg font-semibold text-slate-900">SalesPilot</p><p className="mt-3 max-w-sm text-sm leading-6 text-slate-500">Doğru şirketi keşfedin, kanıtlarla değerlendirin ve satış fırsatına dönüştürün.</p></div><div><p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Ürün</p><div className="mt-4 space-y-3 text-sm text-slate-500"><Link className="block hover:text-blue-600" href="/#nasil-calisir">Nasıl çalışır?</Link><Link className="block hover:text-blue-600" href="/fiyatlandirma">Fiyatlandırma</Link><Link className="block hover:text-blue-600" href="/kayit?plan=demo">Ücretsiz demo</Link></div></div><div><p className="text-xs font-semibold uppercase tracking-widest text-slate-400">SalesPilot</p><div className="mt-4 space-y-3 text-sm text-slate-500"><Link className="block hover:text-blue-600" href="/blog">Blog</Link><Link className="block hover:text-blue-600" href="/hakkimizda">Hakkımızda</Link><Link className="block hover:text-blue-600" href="/giris?next=/panel">Giriş yap</Link></div></div></div><div className="border-t border-slate-100"><div className="mx-auto flex max-w-7xl flex-col justify-between gap-3 px-5 py-6 text-xs text-slate-400 sm:flex-row lg:px-8"><span>© 2026 SalesPilot</span><span>Daha akıllı satış. Daha doğru fırsat.</span></div></div></footer>
     </main>
   );
 }
