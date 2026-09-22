@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bookmark, CheckCircle2, Database, ShieldCheck, Workflow } from "lucide-react";
+import { Bookmark, Building2, Check, CheckCircle2, Database, Globe2, PencilLine, ShieldCheck, Sparkles, Target, Workflow } from "lucide-react";
 import { useEffect, useState } from "react";
 import type {
   CompanyResearch,
@@ -10,6 +10,8 @@ import type {
   ExtraCriterion,
   EmailDraft,
   CompanyCandidate,
+  SellerCompanyAnalysis,
+  TargetCustomerProfile,
 } from "@/lib/salespilot/types";
 import { isOptedOut, markOptedOut } from "@/lib/opt-out";
 import { readProfile, readSavedLeads, saveHistoryItem, toggleSavedLead } from "@/lib/salespilot/workspace-storage";
@@ -54,6 +56,8 @@ const REVIEW_STATUS_LABELS = {
 } as const;
 
 interface CompanyRow extends CompanyCandidate {
+  matchedProfileIds: string[];
+  matchedProfileNames: string[];
   status: RowStatus;
   research?: CompanyResearch;
   score?: ScoreBreakdown;
@@ -80,6 +84,10 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
   const [productOrService, setProductOrService] = useState("");
   const [companyType, setCompanyType] = useState("");
   const [extraCriteria, setExtraCriteria] = useState("");
+  const [desiredMarket, setDesiredMarket] = useState("");
+  const [profileAnalysis, setProfileAnalysis] = useState<SellerCompanyAnalysis | null>(null);
+  const [selectedProfileIds, setSelectedProfileIds] = useState<Set<string>>(() => new Set());
+  const [analyzingProfiles, setAnalyzingProfiles] = useState(false);
   const [scoreThreshold, setScoreThreshold] = useState(75);
   const [currentSearchId, setCurrentSearchId] = useState<string | null>(null);
   const [savedDomains, setSavedDomains] = useState<Set<string>>(() => new Set());
@@ -115,50 +123,135 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     };
   }
 
+  function selectedProfiles(): TargetCustomerProfile[] {
+    return profileAnalysis?.profiles.filter((profile) => selectedProfileIds.has(profile.id)) ?? [];
+  }
+
+  function syncCombinedTarget(profiles: TargetCustomerProfile[]) {
+    setTargetSector(profiles.map((profile) => profile.targetSector).join("; "));
+    setCompanyType(profiles.map((profile) => profile.companyType).join("; "));
+    setExtraCriteria(profiles.map((profile) => profile.extraCriteria).filter(Boolean).join("; "));
+  }
+
+  async function handleGenerateProfiles(e: React.FormEvent) {
+    e.preventDefault();
+    setAnalyzingProfiles(true);
+    setSearchError(null);
+    setRows([]);
+    try {
+      const response = await fetch("/api/target-profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userCompanyName,
+          userWebsite,
+          productOrService,
+          targetRegion,
+          desiredMarket,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Şirket analizi tamamlanamadı.");
+      const analysis = data.analysis as SellerCompanyAnalysis;
+      setProfileAnalysis(analysis);
+      setProductOrService(analysis.productOrService || productOrService);
+      setSelectedProfileIds(new Set());
+      setTargetSector("");
+      setCompanyType("");
+      setExtraCriteria("");
+    } catch (error) {
+      setSearchError(error instanceof Error ? error.message : "Bilinmeyen hata.");
+    } finally {
+      setAnalyzingProfiles(false);
+    }
+  }
+
+  function toggleProfile(profile: TargetCustomerProfile) {
+    setSelectedProfileIds((current) => {
+      const next = new Set(current);
+      if (next.has(profile.id)) next.delete(profile.id); else next.add(profile.id);
+      const profiles = profileAnalysis?.profiles.filter((item) => next.has(item.id)) ?? [];
+      syncCombinedTarget(profiles);
+      return next;
+    });
+  }
+
+  function updateProfile(id: string, patch: Partial<TargetCustomerProfile>) {
+    setProfileAnalysis((current) => {
+      if (!current) return current;
+      const profiles = current.profiles.map((profile) => profile.id === id ? { ...profile, ...patch } : profile);
+      if (selectedProfileIds.has(id)) syncCombinedTarget(profiles.filter((profile) => selectedProfileIds.has(profile.id)));
+      return { ...current, profiles };
+    });
+  }
+
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
+    const profiles = selectedProfiles();
+    if (profiles.length === 0) {
+      setSearchError("Aramaya başlamadan önce en az bir hedef müşteri profili seçin.");
+      return;
+    }
     setSearching(true);
     setSearchError(null);
     setRows([]);
     setSearchSummary(null);
 
     try {
-      const res = await fetch("/api/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          targetSector,
-          targetRegion,
-          productOrService,
-          extraCriteria,
-          companyType,
-          targetCount: 50,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setSearchError(data.error ?? "Bilinmeyen hata.");
-      } else {
+      const perProfileTarget = Math.max(10, Math.ceil(50 / profiles.length));
+      const results = await Promise.all(profiles.map(async (profile) => {
+        const res = await fetch("/api/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            targetSector: profile.targetSector,
+            targetRegion: profile.targetRegion || targetRegion,
+            productOrService,
+            extraCriteria: profile.extraCriteria,
+            companyType: `${profile.companyType}. Hariç: ${profile.exclusionRules.join(", ")}`,
+            targetCount: perProfileTarget,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? `${profile.name} aranamadı.`);
+        return { profile, data };
+      }));
+
+      const merged = new Map<string, CompanyRow>();
+      for (const { profile, data } of results) {
+        for (const candidate of data.companies as CompanyCandidate[]) {
+          const existing = merged.get(candidate.domain);
+          if (existing) {
+            existing.foundVia = Array.from(new Set([...existing.foundVia, ...candidate.foundVia]));
+            existing.matchedProfileIds.push(profile.id);
+            existing.matchedProfileNames.push(profile.name);
+          } else {
+            merged.set(candidate.domain, {
+              ...candidate,
+              matchedProfileIds: [profile.id],
+              matchedProfileNames: [profile.name],
+              status: "idle",
+              emailStatus: "idle",
+            });
+          }
+        }
+      }
+      const companies = Array.from(merged.values()).slice(0, 70);
+      {
         const searchId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         setCurrentSearchId(searchId);
         setSearchSummary({
-          targetCount: data.targetCount,
-          targetReached: data.targetReached,
-          searchRequests: data.searchRequests,
-          rejectedCount: data.rejectedCount,
+          targetCount: 50,
+          targetReached: companies.length >= 50,
+          searchRequests: results.reduce((sum, result) => sum + result.data.searchRequests, 0),
+          rejectedCount: results.reduce((sum, result) => sum + result.data.rejectedCount, 0),
         });
-        setRows(
-          data.companies.map((c: CompanyCandidate) => ({
-            ...c,
-            status: "idle" as RowStatus,
-            emailStatus: "idle" as EmailStatus,
-          }))
-        );
+        setRows(companies);
         saveHistoryItem({
           id: searchId,
           createdAt: new Date().toISOString(),
           request: buildScanRequest(),
-          discovered: data.companies.length,
+          discovered: companies.length,
           qualified: 0,
           status: "discovered",
         });
@@ -404,27 +497,39 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
       </header> : null}
 
       <div className={embedded ? "" : "mx-auto max-w-7xl px-5 py-8 lg:px-8 lg:py-10"}>
-        <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div className="mb-8 flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Yeni tarama</p>
-            <h1 className="text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">Doğru şirketleri bulun.</h1>
+            <h1 className="text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">Önce doğru hedefi belirleyin.</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Hedefinizi tanımlayın; SalesPilot şirketleri bulsun, alıcı rolünü doğrulasın ve kanıta dayalı puanlasın.
+              Şirketinizi tanıtın; yapay zekâ hedef müşteri profillerini oluştursun, siz seçin, SalesPilot arasın.
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 shadow-sm">
-            <span className="grid h-5 w-5 place-items-center rounded-full bg-blue-100 font-semibold text-blue-700">1</span>
-            Hedefle <span className="text-slate-300">→</span> Doğrula <span className="text-slate-300">→</span> Puanla
+          <div className="grid min-w-full grid-cols-3 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm xl:min-w-[460px]">
+            {[
+              ["01", "Şirket", true],
+              ["02", "Hedef profilleri", Boolean(profileAnalysis)],
+              ["03", "Arama", rows.length > 0],
+            ].map(([number, label, active]) => (
+              <div key={String(number)} className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold ${active ? "bg-blue-50 text-blue-700" : "text-slate-400"}`}>
+                <span className={`grid h-6 w-6 place-items-center rounded-full text-[10px] ${active ? "bg-blue-600 text-white" : "bg-slate-100"}`}>{number}</span>
+                <span className="hidden sm:inline">{label}</span>
+              </div>
+            ))}
           </div>
         </div>
 
-      <form onSubmit={handleSearch} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_16px_50px_-36px_rgba(15,23,42,.35)] sm:p-7">
-        <div className="mb-6 border-b border-slate-100 pb-5">
-          <h2 className="font-semibold tracking-tight">Arama profili</h2>
-          <p className="mt-1 text-sm text-slate-500">Net bilgi, daha az gürültü ve daha yüksek eşleşme kalitesi sağlar.</p>
-        </div>
-        <div className="grid gap-5 md:grid-cols-2">
+      <form onSubmit={handleGenerateProfiles} className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_24px_70px_-48px_rgba(15,23,42,.5)]">
+        <div className="flex flex-col gap-5 border-b border-slate-100 bg-gradient-to-r from-blue-50/80 to-white p-5 sm:flex-row sm:items-center sm:p-7">
+          <span className="grid h-12 w-12 flex-none place-items-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/15"><Building2 className="h-5 w-5" /></span>
           <div>
+            <p className="text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Adım 1</p>
+            <h2 className="mt-1 text-xl font-semibold tracking-tight">Şirketinizi tanıtın</h2>
+            <p className="mt-1 text-sm text-slate-500">Web sitenizi inceleyip ürününüz için gerçek alıcı olabilecek profilleri hazırlayacağız.</p>
+          </div>
+        </div>
+        <div className="grid gap-5 p-5 sm:p-7 md:grid-cols-2">
+          <div className="md:col-span-2">
             <label className="field-label">Kendi şirketiniz</label>
             <input
               className="field-input"
@@ -445,21 +550,10 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
             />
           </div>
           <div>
-          <label className="field-label">Hedef sektör</label>
+          <label className="field-label">Satış yapmak istediğiniz bölge</label>
           <input
             className="field-input"
-            placeholder="örn. Gıda üreticileri"
-            value={targetSector}
-            onChange={(e) => setTargetSector(e.target.value)}
-            required
-          />
-          </div>
-
-          <div>
-          <label className="field-label">Hedef bölge</label>
-          <input
-            className="field-input"
-            placeholder="örn. Bursa"
+            placeholder="örn. Türkiye"
             value={targetRegion}
             onChange={(e) => setTargetRegion(e.target.value)}
             required
@@ -478,58 +572,119 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
           </div>
 
           <div>
-          <label className="field-label">Hedef alıcı tipi <span className="font-normal text-slate-400">— isteğe bağlı</span></label>
+          <label className="field-label">Özellikle ulaşmak istediğiniz pazar <span className="font-normal text-slate-400">— isteğe bağlı</span></label>
           <input
             className="field-input"
-            placeholder="Örn. aktif üretim yapan son kullanıcı"
-            value={companyType}
-            onChange={(e) => setCompanyType(e.target.value)}
-          />
-          <p className="mt-1.5 text-xs leading-5 text-slate-400">
-            Satıcı, rakip veya entegratörlerin elenmesi için gerçek alıcı rolünü yazın.
-          </p>
-          </div>
-
-          <div className="md:col-span-2">
-          <label className="field-label">Ek kriterler <span className="font-normal text-slate-400">— isteğe bağlı</span></label>
-          <input
-            className="field-input"
-            placeholder="örn. ihracat yapan, üretim tesisi bulunan"
-            value={extraCriteria}
-            onChange={(e) => setExtraCriteria(e.target.value)}
+            placeholder="Örn. ihracat yapan orta ölçekli üreticiler"
+            value={desiredMarket}
+            onChange={(e) => setDesiredMarket(e.target.value)}
           />
           </div>
 
-          <div>
-          <label className="field-label">Nitelikli lead eşiği</label>
-          <input
-            type="number"
-            min={0}
-            max={100}
-            className="field-input max-w-32"
-            value={scoreThreshold}
-            onChange={(e) => setScoreThreshold(Number(e.target.value))}
-          />
-          </div>
         </div>
 
-        <div className="mt-7 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs leading-5 text-slate-400">Ön eleme sırasında alıcı olmayan şirketler araştırma maliyeti oluşturmadan elenir.</p>
-          <button type="submit" disabled={searching} className="primary-button">
-            {searching ? "Şirketler aranıyor…" : "Taramayı başlat →"}
+        <div className="flex flex-col gap-4 border-t border-slate-100 bg-slate-50/60 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+          <div className="flex items-center gap-2 text-xs leading-5 text-slate-500"><ShieldCheck className="h-4 w-4 flex-none text-blue-600" />Rakip bilgisi istemiyoruz; satıcıları ve ilgisiz sonuçları sistem ayırır.</div>
+          <button type="submit" disabled={analyzingProfiles} className="primary-button">
+            <Sparkles className="mr-2 inline h-4 w-4" />{analyzingProfiles ? "Şirket analiz ediliyor…" : "Hedef profilleri oluştur"}
           </button>
         </div>
       </form>
+
+      {profileAnalysis && (
+        <form onSubmit={handleSearch} className="mt-8 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_24px_70px_-48px_rgba(15,23,42,.5)]">
+          <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white p-5 sm:p-7">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+              <span className="grid h-12 w-12 flex-none place-items-center rounded-2xl bg-slate-950 text-white"><Target className="h-5 w-5" /></span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Adım 2 · AI önerisi</p>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight">Hedef müşteri profillerinizi seçin</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">{profileAnalysis.companySummary}</p>
+              </div>
+              <div className="flex-none rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 sm:max-w-xs">
+                <p className="text-[10px] font-bold uppercase tracking-[.14em] text-blue-600">Temel değer önerisi</p>
+                <p className="mt-1 text-xs leading-5 text-blue-950">{profileAnalysis.valueProposition || "Ürün ve hedef şirket arasındaki ticari uyum"}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 p-5 sm:p-7 lg:grid-cols-2">
+            {profileAnalysis.profiles.map((profile) => {
+              const selected = selectedProfileIds.has(profile.id);
+              return (
+                <article key={profile.id} className={`group flex flex-col rounded-2xl border transition-all ${selected ? "border-blue-400 bg-blue-50/40 shadow-[0_16px_40px_-30px_rgba(37,99,235,.65)]" : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"}`}>
+                  <button type="button" onClick={() => toggleProfile(profile)} className="flex w-full items-start gap-4 p-5 text-left" aria-pressed={selected}>
+                    <span className={`mt-0.5 grid h-9 w-9 flex-none place-items-center rounded-xl border transition ${selected ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-slate-50 text-slate-400"}`}>
+                      {selected ? <Check className="h-4 w-4" /> : <Building2 className="h-4 w-4" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center justify-between gap-3">
+                        <span className="font-semibold tracking-tight text-slate-900">{profile.name}</span>
+                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${selected ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>{selected ? "Seçildi" : "Seç"}</span>
+                      </span>
+                      <span className="mt-2 block text-sm leading-6 text-slate-600">{profile.fitReason}</span>
+                    </span>
+                  </button>
+
+                  <div className="mx-5 flex flex-wrap gap-2 border-t border-slate-100 py-4">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200"><Target className="h-3 w-3 text-blue-600" />{profile.targetSector}</span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200"><Globe2 className="h-3 w-3 text-blue-600" />{profile.targetRegion}</span>
+                  </div>
+
+                  <div className="px-5 pb-4 text-xs leading-5 text-slate-500">
+                    <p><span className="font-semibold text-slate-700">Muhtemel ihtiyaç:</span> {profile.likelyNeed}</p>
+                    {profile.buyingSignals.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{profile.buyingSignals.slice(0, 3).map((signal) => <span key={signal} className="rounded-md bg-blue-50 px-2 py-1 text-[10px] font-medium text-blue-700">{signal}</span>)}</div>}
+                  </div>
+
+                  <details className="mt-auto border-t border-slate-100 px-5 py-4">
+                    <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-slate-500 hover:text-blue-700"><PencilLine className="h-3.5 w-3.5" />Profili incele ve düzenle</summary>
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <label className="text-xs text-slate-500">Sektör
+                          <input className="field-input mt-1" value={profile.targetSector} onChange={(event) => updateProfile(profile.id, { targetSector: event.target.value })} />
+                        </label>
+                        <label className="text-xs text-slate-500">Alıcı şirket tipi
+                          <input className="field-input mt-1" value={profile.companyType} onChange={(event) => updateProfile(profile.id, { companyType: event.target.value })} />
+                        </label>
+                        <label className="text-xs text-slate-500">Bölge
+                          <input className="field-input mt-1" value={profile.targetRegion} onChange={(event) => updateProfile(profile.id, { targetRegion: event.target.value })} />
+                        </label>
+                        <label className="text-xs text-slate-500">Ek ölçütler
+                          <input className="field-input mt-1" value={profile.extraCriteria} onChange={(event) => updateProfile(profile.id, { extraCriteria: event.target.value })} />
+                        </label>
+                    </div>
+                    {profile.exclusionRules.length > 0 && <p className="mt-3 text-[11px] leading-5 text-slate-400"><span className="font-semibold text-slate-500">Hariç tutulacaklar:</span> {profile.exclusionRules.join(" · ")}</p>}
+                  </details>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-col gap-4 border-t border-slate-100 bg-slate-50/60 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="text-sm font-semibold text-slate-700">{selectedProfileIds.size} profil seçildi</span>
+              <label className="flex items-center gap-2 text-xs text-slate-500">Lead eşiği
+                <input type="number" min={0} max={100} className="field-input !w-20 !py-2 text-center" value={scoreThreshold} onChange={(event) => setScoreThreshold(Number(event.target.value))} />
+              </label>
+            </div>
+            <button type="submit" disabled={searching || selectedProfileIds.size === 0} className="primary-button">
+              <Target className="mr-2 inline h-4 w-4" />{searching ? "Seçilen profiller aranıyor…" : "Seçilen profillerle ara"}
+            </button>
+          </div>
+        </form>
+      )}
 
       {searchError && (
         <p className="mt-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{searchError}</p>
       )}
 
       {rows.length > 0 && (
-        <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_16px_50px_-36px_rgba(15,23,42,.35)] sm:p-7">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-neutral-500">{rows.length} ön elemeden geçen şirket adayı bulundu.</p>
+        <div className="mt-8 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_24px_70px_-48px_rgba(15,23,42,.5)]">
+          <div className="flex flex-col gap-5 border-b border-slate-100 bg-gradient-to-r from-blue-50/70 to-white p-5 sm:p-7 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <span className="grid h-12 w-12 flex-none place-items-center rounded-2xl bg-blue-600 text-white"><CheckCircle2 className="h-5 w-5" /></span>
+              <div>
+              <p className="text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Adım 3 · Aday havuzu</p>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight">{rows.length} şirket adayı bulundu</h2>
               {searchSummary && (
                 <p className={`mt-1 text-xs ${searchSummary.targetReached ? "text-blue-700" : "text-amber-700"}`}>
                   {searchSummary.targetReached
@@ -538,12 +693,13 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
                   {` ${searchSummary.searchRequests} arama isteği · ${searchSummary.rejectedCount} gürültülü sonuç elendi.`}
                 </p>
               )}
+              </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {rows.some((row) => row.status === "done") && (
                 <button
                   onClick={handleExportResults}
-                  className="rounded-md border border-neutral-300 px-4 py-2 text-sm text-neutral-700"
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:border-blue-300 hover:text-blue-700"
                 >
                   Sonuçları indir
                 </button>
@@ -551,16 +707,16 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
               <button
                 onClick={handleProcessAll}
                 disabled={processing}
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-50"
+                className="rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/15 disabled:opacity-50"
               >
                 {processing ? "İşleniyor..." : "Tümünü Araştır ve Puanla"}
               </button>
             </div>
           </div>
 
-          <ul className="mt-5 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200">
+          <ul className="divide-y divide-slate-100">
             {rows.map((row) => (
-              <li key={row.domain} className="p-5 transition-colors hover:bg-slate-50/70">
+              <li key={row.domain} className="p-5 transition-colors hover:bg-slate-50/70 sm:px-7">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <a
@@ -576,6 +732,9 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
                       Keşif güveni: {row.discoveryConfidence === "high" ? "yüksek" : "orta"}
                       {row.foundVia.length > 1 ? ` · ${row.foundVia.length} sorguda bulundu` : ""}
                     </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {Array.from(new Set(row.matchedProfileNames)).map((profileName) => <span key={profileName} className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700">{profileName}</span>)}
+                    </div>
                     {row.status === "done" && row.research && (
                       <div className="mt-1 space-y-1 text-xs">
                         <p className="text-neutral-600">
