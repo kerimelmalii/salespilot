@@ -135,6 +135,36 @@ export interface CompanyCandidate {
   discoveryReason: string;
 }
 
+// ---- AI hedef müşteri profili ----
+
+export interface TargetCustomerProfile {
+  id: string;
+  name: string;
+  targetSector: string;
+  companyType: string;
+  targetRegion: string;
+  likelyNeed: string;
+  fitReason: string;
+  buyingSignals: string[];
+  exclusionRules: string[];
+  extraCriteria: string;
+}
+
+export interface SellerCompanyAnalysis {
+  companySummary: string;
+  productOrService: string;
+  valueProposition: string;
+  profiles: TargetCustomerProfile[];
+}
+
+export interface SellerProfileRequest {
+  userCompanyName: string;
+  userWebsite: string;
+  productOrService: string;
+  targetRegion: string;
+  desiredMarket?: string;
+}
+
 // ---- İYS / rıza takibi ----
 
 export type ConsentStatus =

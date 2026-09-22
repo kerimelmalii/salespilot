@@ -22,6 +22,7 @@ import {
   buildCriteriaParsingPrompt,
   buildScoringPrompt,
   buildEmailPrompt,
+  buildTargetProfilesPrompt,
   type ScrapedPage,
 } from "./prompts";
 import type { SearchInputs } from "./discovery";
@@ -35,6 +36,9 @@ import type {
   EntityType,
   BuyerRole,
   TernarySignal,
+  SellerProfileRequest,
+  SellerCompanyAnalysis,
+  TargetCustomerProfile,
 } from "./types";
 import {
   createHardDisqualifiedScore,
@@ -50,6 +54,48 @@ const RESEARCH_MODEL = "claude-haiku-4-5-20251001";
 const CRITERIA_MODEL = "claude-haiku-4-5-20251001";
 const SCORING_MODEL = "claude-haiku-4-5-20251001";
 const EMAIL_MODEL = "claude-haiku-4-5-20251001"; // kalite yetmezse "claude-sonnet-5" deneyin
+
+export async function generateTargetCustomerProfiles(
+  input: SellerProfileRequest,
+  pages: ScrapedPage[]
+): Promise<SellerCompanyAnalysis> {
+  const parsed = await callAnthropicForJson<SellerCompanyAnalysis>({
+    model: CRITERIA_MODEL,
+    maxTokens: 2400,
+    prompt: buildTargetProfilesPrompt(input, pages),
+  });
+
+  const profiles = (parsed.profiles ?? [])
+    .slice(0, 5)
+    .map((profile, index): TargetCustomerProfile => ({
+      id: `profile_${index + 1}`,
+      name: String(profile.name ?? "").trim(),
+      targetSector: String(profile.targetSector ?? "").trim(),
+      companyType: String(profile.companyType ?? "").trim(),
+      targetRegion: String(profile.targetRegion || input.targetRegion).trim(),
+      likelyNeed: String(profile.likelyNeed ?? "").trim(),
+      fitReason: String(profile.fitReason ?? "").trim(),
+      buyingSignals: Array.isArray(profile.buyingSignals)
+        ? profile.buyingSignals.filter((item): item is string => typeof item === "string").slice(0, 5)
+        : [],
+      exclusionRules: Array.isArray(profile.exclusionRules)
+        ? profile.exclusionRules.filter((item): item is string => typeof item === "string").slice(0, 4)
+        : [],
+      extraCriteria: String(profile.extraCriteria ?? "").trim(),
+    }))
+    .filter((profile) => profile.name && profile.targetSector && profile.companyType);
+
+  if (profiles.length === 0) {
+    throw new Error("Güvenilir bir hedef müşteri profili oluşturulamadı.");
+  }
+
+  return {
+    companySummary: String(parsed.companySummary ?? "").trim(),
+    productOrService: String(parsed.productOrService || input.productOrService).trim(),
+    valueProposition: String(parsed.valueProposition ?? "").trim(),
+    profiles,
+  };
+}
 
 /** Model yanıtlarındaki olası ```json çitlerini temizleyip JSON.parse eder. */
 function parseJsonResponse<T>(text: string): T {
