@@ -69,6 +69,7 @@ export default function Home() {
   const [processing, setProcessing] = useState(false);
   const [rows, setRows] = useState<CompanyRow[]>([]);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchNotice, setSearchNotice] = useState<string | null>(null);
 
   function buildScanRequest(): ScanRequest {
     return {
@@ -86,6 +87,7 @@ export default function Home() {
     e.preventDefault();
     setSearching(true);
     setSearchError(null);
+    setSearchNotice(null);
     setRows([]);
 
     try {
@@ -97,6 +99,10 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) {
         setSearchError(data.error ?? "Bilinmeyen hata.");
+      } else if (data.companies.length === 0) {
+        setSearchNotice(
+          "Bu kriterlerle hiç şirket bulunamadı. Sektör/bölge/ürün alanlarını genişletip tekrar deneyin."
+        );
       } else {
         setRows(
           data.companies.map((c: CompanyCandidate) => ({
@@ -183,7 +189,6 @@ export default function Home() {
     // Sırayla işliyoruz (paralel değil) - API maliyetini ve hız limitlerini
     // kontrollü tutmak için. Küçük pilot hacimlerinde bu yeterince hızlı.
     for (const row of rows) {
-      // eslint-disable-next-line no-await-in-loop
       await processCompany(row, scanRequest, extraCriteriaRubric);
     }
     setProcessing(false);
@@ -369,6 +374,12 @@ export default function Home() {
 
       {searchError && (
         <p className="mt-6 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{searchError}</p>
+      )}
+
+      {searchNotice && (
+        <p className="mt-6 rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {searchNotice}
+        </p>
       )}
 
       {rows.length > 0 && (
