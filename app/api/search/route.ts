@@ -171,6 +171,8 @@ export async function POST(req: NextRequest) {
 
   const queries = buildQueries(body);
   const candidatesByDomain = new Map<string, CompanyCandidate>();
+  let lastQueryError: unknown = null;
+  let failedQueryCount = 0;
 
   for (const query of queries) {
     let results: SerperOrganicResult[] = [];
@@ -179,6 +181,8 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       // Bir sorgu başarısız olursa tüm taramayı çökertme, sadece o sorguyu atla.
       console.error(`Arama sorgusu başarısız: "${query}"`, err);
+      failedQueryCount += 1;
+      lastQueryError = err;
       continue;
     }
 
@@ -199,6 +203,18 @@ export async function POST(req: NextRequest) {
         });
       }
     }
+  }
+
+  // Sorguların HEPSİ başarısız olduysa (örn. geçersiz/eksik API anahtarı,
+  // Serper kotası bitmiş vb.) bunu "0 sonuç bulundu" gibi göstermek yanıltıcı
+  // - kullanıcı sanki hedef bölgede hiç şirket yokmuş gibi düşünür. Gerçek
+  // hatayı bildiriyoruz.
+  if (failedQueryCount === queries.length) {
+    const message = lastQueryError instanceof Error ? lastQueryError.message : "Bilinmeyen hata";
+    return NextResponse.json(
+      { error: `Arama yapılamadı: ${message}` },
+      { status: 502 }
+    );
   }
 
   return NextResponse.json({
