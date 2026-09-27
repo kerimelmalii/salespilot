@@ -13,6 +13,10 @@
  * ucuz/hızlı bir model (Haiku 4.5) kullanıyoruz. Sadece kalitenin gerçekten
  * fark yarattığı e-posta taslağı adımında isterseniz daha güçlü bir modele
  * geçebilirsiniz (aşağıda EMAIL_MODEL sabitini değiştirmeniz yeterli).
+ *
+ * ÖLÇÜM: Her Anthropic çağrısı token/süre bilgisini (AiCallUsage) de
+ * döndürür - çağıran route handler bunu scanId/companyId ile birlikte
+ * ai_usage_logs tablosuna yazar (bkz. lib/salespilot/measurement.ts).
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -31,6 +35,11 @@ import type {
   CriterionScore,
   ExtraCriterion,
   ContactEmailCandidate,
+  SectorMatchClass,
+  BuyerStatus,
+  CompetitorStatus,
+  CommercialRole,
+  DecisionStatus,
 } from "./types";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -41,6 +50,15 @@ const RESEARCH_MODEL = "claude-haiku-4-5-20251001";
 const CRITERIA_MODEL = "claude-haiku-4-5-20251001";
 const SCORING_MODEL = "claude-haiku-4-5-20251001";
 const EMAIL_MODEL = "claude-haiku-4-5-20251001"; // kalite yetmezse "claude-sonnet-5" deneyin
+
+export interface AiCallUsage {
+  modelName: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationInputTokens: number | null;
+  cacheReadInputTokens: number | null;
+  durationMs: number;
+}
 
 /** Model yanıtlarındaki olası ```json çitlerini temizleyip JSON.parse eder. */
 function parseJsonResponse<T>(text: string): T {
@@ -59,7 +77,8 @@ async function callAnthropicForJson<T>(params: {
   model: string;
   maxTokens: number;
   prompt: string;
-}): Promise<T> {
+}): Promise<{ data: T; usage: AiCallUsage }> {
+  const startedAt = Date.now();
   const call = (maxTokens: number) =>
     anthropic.messages.create({
       model: params.model,
@@ -77,11 +96,22 @@ async function callAnthropicForJson<T>(params: {
     response = await call(retryMaxTokens);
   }
 
+  const usage: AiCallUsage = {
+    modelName: params.model,
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
+    // Bu SDK sürümü (0.27.3) prompt caching alanlarını Usage tipinde expose
+    // etmiyor ve zaten cache_control kullanmıyoruz - şimdilik hep null.
+    cacheCreationInputTokens: null,
+    cacheReadInputTokens: null,
+    durationMs: Date.now() - startedAt,
+  };
+
   const textBlock = response.content.find((b) => b.type === "text");
   const text = textBlock && "text" in textBlock ? textBlock.text : "{}";
 
   try {
-    return parseJsonResponse<T>(text);
+    return { data: parseJsonResponse<T>(text), usage };
   } catch (err) {
     console.error(
       `JSON parse hatası (stop_reason: ${response.stop_reason}). Ham yanıt:`,
@@ -102,22 +132,25 @@ export async function researchCompany(
   domain: string,
   pages: ScrapedPage[],
   emailCandidates: ContactEmailCandidate[] = []
-): Promise<CompanyResearch> {
+): Promise<{ research: CompanyResearch; usage: AiCallUsage | null }> {
   if (pages.length === 0) {
     // Site kazınamadıysa sistem çökmesin, "veri yok" durumunu açıkça işaretle
     return {
-      companyName,
-      domain,
-      summary: "Web sitesinden veri toplanamadı.",
-      facts: [],
-      contactEmails: emailCandidates, // sayfa metni boş olsa bile mailto linki bulunmuş olabilir
-      collectedAt: new Date().toISOString(),
-      pagesVisited: [],
-      scrapeFailed: true,
+      research: {
+        companyName,
+        domain,
+        summary: "Web sitesinden veri toplanamadı.",
+        facts: [],
+        contactEmails: emailCandidates, // sayfa metni boş olsa bile mailto linki bulunmuş olabilir
+        collectedAt: new Date().toISOString(),
+        pagesVisited: [],
+        scrapeFailed: true,
+      },
+      usage: null,
     };
   }
 
-  const parsed = await callAnthropicForJson<{
+  const { data: parsed, usage } = await callAnthropicForJson<{
     summary: string;
     facts: CompanyResearch["facts"];
   }>({
@@ -127,13 +160,16 @@ export async function researchCompany(
   });
 
   return {
-    companyName,
-    domain,
-    summary: parsed.summary,
-    facts: parsed.facts,
-    contactEmails: emailCandidates, // AI'dan değil, doğrudan kazımadan geliyor - uydurma yok
-    collectedAt: new Date().toISOString(),
-    pagesVisited: pages.map((p) => p.path),
+    research: {
+      companyName,
+      domain,
+      summary: parsed.summary,
+      facts: parsed.facts,
+      contactEmails: emailCandidates, // AI'dan değil, doğrudan kazımadan geliyor - uydurma yok
+      collectedAt: new Date().toISOString(),
+      pagesVisited: pages.map((p) => p.path),
+    },
+    usage,
   };
 }
 
@@ -150,37 +186,63 @@ export async function researchCompany(
  */
 export async function parseExtraCriteria(
   scanRequest: ScanRequest
-): Promise<ExtraCriterion[]> {
+): Promise<{ rubric: ExtraCriterion[]; usage: AiCallUsage | null }> {
   if (!scanRequest.extraCriteria || scanRequest.extraCriteria.trim().length === 0) {
-    return [];
+    return { rubric: [], usage: null };
   }
 
-  const parsed = await callAnthropicForJson<{ criteria: ExtraCriterion[] }>({
+  const { data: parsed, usage } = await callAnthropicForJson<{ criteria: ExtraCriterion[] }>({
     model: CRITERIA_MODEL,
     maxTokens: 500,
     prompt: buildCriteriaParsingPrompt(scanRequest),
   });
 
-  return parsed.criteria ?? [];
+  return { rubric: parsed.criteria ?? [], usage };
 }
 
 // ---------------------------------------------------------------------
 // Adım 2b: Kanıta dayalı puanlama - SABİT rubric ile
 // ---------------------------------------------------------------------
 
+interface RawScoringResponse {
+  isPlausibleLead: boolean;
+  leadViabilityReason: string;
+  sectorFit: CriterionScore;
+  regionFit: CriterionScore;
+  productFit: CriterionScore;
+  extraCriteria: CriterionScore[];
+  sectorMatchClass: SectorMatchClass;
+  buyerStatus: BuyerStatus;
+  competitorStatus: CompetitorStatus;
+  evidenceConfidence: number;
+  commercialRole: CommercialRole;
+  roleReasoning: string;
+}
+
+/**
+ * totalScore/qualified'dan DecisionStatus türetir. Model bunu doğrudan
+ * üretmiyor - kod tarafında tek bir yerde, tutarlı biçimde hesaplanıyor
+ * (bkz. proje kökündeki 28 Eylül 2026 ölçüm sistemi tasarımı).
+ */
+function deriveDecisionStatus(
+  isPlausibleLead: boolean,
+  qualified: boolean,
+  totalScore: number,
+  scoreThreshold: number
+): DecisionStatus {
+  if (!isPlausibleLead) return "rejected";
+  if (qualified) return "qualified";
+  // Eşiğin en az yarısına ulaştıysa "olası eşleşme", yoksa "daha fazla
+  // araştırma gerekiyor" - ikisi de reddedilmiş sayılmaz.
+  return totalScore >= scoreThreshold / 2 ? "possible_match" : "needs_research";
+}
+
 export async function scoreCompany(
   research: CompanyResearch,
   scanRequest: ScanRequest,
   extraCriteriaRubric: ExtraCriterion[]
-): Promise<ScoreBreakdown> {
-  const parsed = await callAnthropicForJson<{
-    isPlausibleLead: boolean;
-    leadViabilityReason: string;
-    sectorFit: CriterionScore;
-    regionFit: CriterionScore;
-    productFit: CriterionScore;
-    extraCriteria: CriterionScore[];
-  }>({
+): Promise<{ score: ScoreBreakdown; usage: AiCallUsage }> {
+  const { data: parsed, usage } = await callAnthropicForJson<RawScoringResponse>({
     model: SCORING_MODEL,
     maxTokens: 2000,
     prompt: buildScoringPrompt(research, scanRequest, extraCriteriaRubric),
@@ -210,10 +272,21 @@ export async function scoreCompany(
     parsed.productFit.awardedPoints +
     parsed.extraCriteria.reduce((sum, c) => sum + c.awardedPoints, 0);
 
+  const qualified = totalScore >= scanRequest.scoreThreshold;
+
   return {
-    ...parsed,
-    totalScore,
-    qualified: totalScore >= scanRequest.scoreThreshold,
+    score: {
+      ...parsed,
+      totalScore,
+      qualified,
+      decisionStatus: deriveDecisionStatus(
+        parsed.isPlausibleLead,
+        qualified,
+        totalScore,
+        scanRequest.scoreThreshold
+      ),
+    },
+    usage,
   };
 }
 
@@ -225,12 +298,12 @@ export async function draftEmail(
   research: CompanyResearch,
   scanRequest: ScanRequest,
   senderCompanyName: string
-): Promise<EmailDraft> {
+): Promise<{ draft: EmailDraft; usage: AiCallUsage }> {
   const verifiedSnippets = research.facts
     .filter((f) => f.status === "verified")
     .map((f) => f.sourceSnippet ?? f.claim);
 
-  const parsed = await callAnthropicForJson<{
+  const { data: parsed, usage } = await callAnthropicForJson<{
     subject: string;
     body: string;
     basedOnFacts: string[];
@@ -241,33 +314,13 @@ export async function draftEmail(
   });
 
   return {
-    leadId: "", // çağıran kod dolduracak
-    subject: parsed.subject,
-    body: parsed.body,
-    basedOnFacts: parsed.basedOnFacts,
-    createdAt: new Date().toISOString(),
+    draft: {
+      leadId: "", // çağıran kod dolduracak
+      subject: parsed.subject,
+      body: parsed.body,
+      basedOnFacts: parsed.basedOnFacts,
+      createdAt: new Date().toISOString(),
+    },
+    usage,
   };
-}
-
-// ---------------------------------------------------------------------
-// Uçtan uca örnek kullanım
-// ---------------------------------------------------------------------
-
-export async function processOneCompany(
-  companyName: string,
-  domain: string,
-  pages: ScrapedPage[],
-  scanRequest: ScanRequest,
-  extraCriteriaRubric: ExtraCriterion[],
-  senderCompanyName: string
-) {
-  const research = await researchCompany(companyName, domain, pages);
-  const score = await scoreCompany(research, scanRequest, extraCriteriaRubric);
-
-  // Sadece nitelikli lead'ler için mail taslağı üret (maliyet + gereksizlik)
-  const email = score.qualified
-    ? await draftEmail(research, scanRequest, senderCompanyName)
-    : null;
-
-  return { research, score, email };
 }

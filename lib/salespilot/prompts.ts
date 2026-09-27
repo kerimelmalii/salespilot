@@ -252,11 +252,36 @@ JSON şeması:
   "productFit": { "criterion": "Ürün/Hizmet uyumu", "maxPoints": 25, "awardedPoints": 0, "confidence": "...", "reasoning": "...", "evidenceRefs": [] },
   "extraCriteria": [
     { "criterion": "(yukarıdaki sabit listeden, AYNEN)", "maxPoints": 15, "awardedPoints": 0, "confidence": "...", "reasoning": "...", "evidenceRefs": [] }
-  ]
+  ],
+  "sectorMatchClass": "strong_match|partial_match|mismatch|unknown",
+  "buyerStatus": "confirmed_buyer|probable_buyer|possible_buyer|not_buyer|unknown",
+  "competitorStatus": "direct_competitor|indirect_competitor|not_competitor|uncertain",
+  "evidenceConfidence": 0,
+  "commercialRole": "end_user|oem|system_integrator|distributor|service_provider|direct_competitor|unknown",
+  "roleReasoning": "kısa gerekçe"
 }
 
-(totalScore ve qualified alanlarını SEN hesaplama, bunlar kod tarafında
-awardedPoints'lerin toplamından otomatik hesaplanacak.)
+EK ALANLAR - yukarıdaki puanlamayla AYNI analize dayanarak doldur (ayrı bir
+çağrı gerekmiyor):
+- "sectorMatchClass": sektör uyumunu "strong_match" | "partial_match" |
+  "mismatch" | "unknown" olarak sınıflandır (sectorFit puanınla tutarlı olsun).
+- "buyerStatus": bu şirketin ürünü/hizmeti GERÇEKTEN satın alacak bir işletme
+  olma ihtimalini "confirmed_buyer" (kanıt açık) | "probable_buyer" |
+  "possible_buyer" | "not_buyer" | "unknown" olarak sınıflandır.
+- "competitorStatus": "direct_competitor" | "indirect_competitor" |
+  "not_competitor" | "uncertain" - isPlausibleLead: false ve gerekçe rakiplikse
+  buraya da yansıt.
+- "evidenceConfidence": 0-100 arası bir sayı - bu TİCARİ UYGUNLUKTAN AYRI,
+  sadece kanıtların kalitesini ölçer (90-100: resmi sitede birden fazla açık
+  kanıt, 70-89: en az bir güçlü kanıt, 40-69: dolaylı/eksik kanıt, 1-39: zayıf
+  üçüncü taraf sinyalleri, 0: doğrulanabilir kanıt yok).
+- "commercialRole": şirketin ticari rolünü "end_user" | "oem" |
+  "system_integrator" | "distributor" | "service_provider" |
+  "direct_competitor" | "unknown" olarak sınıflandır.
+- "roleReasoning": commercialRole için kısa gerekçe.
+
+(totalScore, qualified ve decisionStatus alanlarını SEN hesaplama, bunlar kod
+tarafında otomatik hesaplanacak.)
 `.trim();
 }
 

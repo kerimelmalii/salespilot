@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "human_reviews_scan_company_idx" ON "human_reviews" USING btree ("scan_id","company_id");

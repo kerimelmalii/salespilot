@@ -73,6 +73,37 @@ export interface ExtraCriterion {
   maxPoints: number;
 }
 
+export type SectorMatchClass = "strong_match" | "partial_match" | "mismatch" | "unknown";
+
+export type BuyerStatus =
+  | "confirmed_buyer"
+  | "probable_buyer"
+  | "possible_buyer"
+  | "not_buyer"
+  | "unknown";
+
+export type CompetitorStatus =
+  | "direct_competitor"
+  | "indirect_competitor"
+  | "not_competitor"
+  | "uncertain";
+
+export type CommercialRole =
+  | "end_user"
+  | "oem"
+  | "system_integrator"
+  | "distributor"
+  | "service_provider"
+  | "direct_competitor"
+  | "unknown";
+
+export type DecisionStatus =
+  | "qualified"
+  | "possible_match"
+  | "needs_research"
+  | "rejected"
+  | "technical_failure";
+
 export interface ScoreBreakdown {
   // 17 Eylül 2026'da gerçek bir testte (SaaS/hizmet satışı) gözlemlendi:
   // model bazen bir rakip/tedarikçi şirketi ("bu ürünü satan, alan değil"
@@ -86,6 +117,18 @@ export interface ScoreBreakdown {
   extraCriteria: CriterionScore[]; // toplam max 30 - kullanıcının serbest metninden ayrıştırılır
   totalScore: number; // 0-100
   qualified: boolean; // totalScore >= threshold
+
+  // 28 Eylül 2026 - ölçüm sistemi: ikili (qualified/not) yerine dereceli ve
+  // ayrıştırılmış kategoriler. Precision/recall ve "yanlış elenen müşteri"
+  // gibi kalite metrikleri bu alanlar olmadan hesaplanamaz.
+  sectorMatchClass: SectorMatchClass;
+  buyerStatus: BuyerStatus;
+  competitorStatus: CompetitorStatus;
+  evidenceConfidence: number; // 0-100 - ticari uygunluktan AYRI, kanıt kalitesi
+  decisionStatus: DecisionStatus;
+
+  commercialRole: CommercialRole;
+  roleReasoning: string;
 }
 
 // ---- İYS / rıza takibi ----
