@@ -6,13 +6,18 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.27.3",
     "cheerio": "1.0.0",
+    "drizzle-orm": "^0.45.3",
     "next": "16.3.5",
     "nodemailer": "10.0.10",
+    "postgres": "^3.4.9",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
@@ -22,10 +27,12 @@
     "@types/react": "19.1.0",
     "@types/react-dom": "19.1.0",
     "autoprefixer": "10.4.20",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.5",
     "postcss": "8.5.28",
     "tailwindcss": "3.4.10",
+    "tsx": "^4.23.15",
     "typescript": "5.5.4"
   }
 }

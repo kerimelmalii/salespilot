@@ -9,7 +9,8 @@ tamamlandı: temel Next.js + Serper arama altyapısı.
 ```bash
 npm install
 cp .env.example .env.local
-# .env.local içine kendi SERPER_API_KEY ve ANTHROPIC_API_KEY'inizi girin
+# .env.local içine kendi DATABASE_URL, SERPER_API_KEY ve ANTHROPIC_API_KEY'inizi girin
+npm run db:migrate
 npm run dev
 ```
 
@@ -112,14 +113,72 @@ eklendi:
 Pilot şirketlere paylaşacağınız link ile birlikte bu şifreyi de ayrıca
 (örn. telefonla veya ayrı bir mesajla) iletin - aynı mailde göndermeyin.
 
+## Ölçüm sistemi (Faz 6 - 28 Eylül 2026)
+
+Her tarama artık kalıcı bir Postgres veritabanına (`DATABASE_URL`) yazılıyor -
+tarayıcı geçmişi/localStorage değil. Bu, "sonuçlar iyi/kötü görünüyor" gibi
+öznel değerlendirmeler yerine sürümler arası sayısal karşılaştırma yapabilmek
+için gerekli (bkz. proje kökündeki tasarım tartışması).
+
+**Şema:** `lib/db/schema.ts` (Drizzle ORM) - `scan_runs`, `search_queries`,
+`search_results`, `company_candidates`, `company_evaluations`,
+`evidence_records`, `contact_emails`, `ai_usage_logs`, `scan_errors`,
+`human_reviews`. Migration dosyaları `lib/db/migrations/` altında, git'e
+commit edilir (production'da da AYNI migration'lar çalıştırılmalı).
+
+**Komutlar:**
+
+```bash
+npm run db:generate  # schema.ts değiştiğinde yeni migration dosyası üretir
+npm run db:migrate   # bekleyen migration'ları DATABASE_URL'e uygular
+npm run db:studio    # veritabanını tarayıcıda incelemek için Drizzle Studio
+```
+
+**Uygulamada neler ölçülüyor:**
+- Her tarama bir `scanId` alır; arama sorguları, ham Serper sonuçları (elenenler
+  eleme nedeniyle birlikte), tekilleştirilmiş şirket adayları, araştırma
+  kanıtları, puanlama sonuçları, her Anthropic çağrısının token/maliyet/süresi
+  ve tüm hatalar bu kimliğe bağlı olarak kaydedilir.
+- Puanlama adımı artık `sectorMatchClass`, `buyerStatus`, `competitorStatus`,
+  `evidenceConfidence`, `commercialRole` gibi ayrıştırılmış kategoriler de
+  üretiyor (bkz. `lib/salespilot/prompts.ts` - aynı çağrıda, ek maliyet yok).
+- Sonuç kartlarında "Doğru hedef / Olası hedef / Hedef değil / Rakip /
+  Kararsızım" butonları var - kullanıcının GERÇEK değerlendirmesi
+  `human_reviews` tablosuna yazılır ve sistemin tahminiyle karşılaştırılarak
+  precision, yanlış pozitif/negatif hesaplanır.
+- "📊 Tarama Raporu" butonu `GET /api/scan-report?scanId=...` üzerinden ham
+  sonuç sayısı, benzersiz domain, elenen/nitelikli/olası eşleşme sayıları,
+  precision, kanıtlı sonuç oranı, token/maliyet ve toplam süreyi gösterir.
+
+**Bilinen sınırlamalar (dürüstçe belirtilmeli):**
+- `scan_runs` şemasında "5 hedef müşteri profili öner" adımı için ayrılmış
+  alanlar (`generatedProfiles`, `selectedProfileIds`) var ama bu ÖZELLİK henüz
+  uygulamada yok - alanlar şimdilik boş kalıyor, ileride bu adım eklenirse
+  şema hazır.
+- "Resmi domain doğrulama oranı" gibi bazı metrikler tasarım dokümanındaki
+  tam karşılığına sahip değil (örn. ülke/şehir çıkarımı henüz AI tarafından
+  yapılmıyor) - `lib/salespilot/report.ts` içindeki yorumlarda hangi
+  metriğin nasıl yaklaşıklandığı not edildi.
+- Recall'ı ölçmek için gereken "önceden doğrulanmış test seti" (adım 10) bir
+  veri toplama süreci - `human_reviews` altyapısı hazır ama test seti zamanla,
+  gerçek pilot taramalarla birikir.
+
 ## Deploy (Vercel önerisi)
 
 En kolay yol Vercel (Next.js'in kendi platformu, ücretsiz katmanı var):
 
 1. Bu projeyi bir GitHub reposuna push edin.
 2. vercel.com'da hesap açıp reponuzu bağlayın.
-3. Environment Variables kısmına `SERPER_API_KEY`, `ANTHROPIC_API_KEY`,
+3. Vercel Dashboard → Storage → Create Database → Postgres ile bir veritabanı
+   oluşturun (proje ile otomatik bağlanır, `DATABASE_URL` dahil ortam
+   değişkenlerini otomatik ekler) - veya kendi Neon/Supabase bağlantı dizenizi
+   `DATABASE_URL` olarak elle girin.
+4. Environment Variables kısmına `SERPER_API_KEY`, `ANTHROPIC_API_KEY`,
    `SITE_PASSWORD`, `SESSION_SECRET` değerlerini girin (`.env.local`'e
    değil, Vercel'in kendi ayarlarına).
-4. Deploy edin - size `proje-adi.vercel.app` gibi ücretsiz bir adres
+5. `npm run db:migrate` komutunu production `DATABASE_URL`'iniz ile ÇALIŞTIRIN
+   (yerel makinenizden `DATABASE_URL=<production-url> npm run db:migrate`) -
+   bu adım otomatik değil, ilk deploy'dan önce ve her yeni migration'da elle
+   yapılmalı.
+6. Deploy edin - size `proje-adi.vercel.app` gibi ücretsiz bir adres
    verecek. İsterseniz sonra kendi domain'inizi bağlayabilirsiniz.

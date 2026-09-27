@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseExtraCriteria } from "@/lib/salespilot/pipeline";
 import type { ScanRequest } from "@/lib/salespilot/types";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { recordAiUsage, recordScanError } from "@/lib/salespilot/measurement";
+
+interface CriteriaRequestBody extends ScanRequest {
+  scanId: string;
+}
 
 /**
  * Bu endpoint tarama başına SADECE BİR KEZ çağrılmalı (arama sonuçları
@@ -25,18 +30,41 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let scanRequest: ScanRequest;
+  let body: CriteriaRequestBody;
   try {
-    scanRequest = await req.json();
+    body = await req.json();
   } catch {
     return NextResponse.json({ error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
+  if (!body.scanId) {
+    return NextResponse.json({ error: "scanId zorunlu." }, { status: 400 });
+  }
+
   try {
-    const rubric = await parseExtraCriteria(scanRequest);
+    const { rubric, usage } = await parseExtraCriteria(body);
+    if (usage) {
+      await recordAiUsage({
+        scanId: body.scanId,
+        purpose: "criteria_generation",
+        modelName: usage.modelName,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        cacheCreationInputTokens: usage.cacheCreationInputTokens,
+        cacheReadInputTokens: usage.cacheReadInputTokens,
+        durationMs: usage.durationMs,
+      });
+    }
     return NextResponse.json({ rubric });
   } catch (err) {
     console.error("Kriter ayrıştırma başarısız", err);
+    await recordScanError({
+      scanId: body.scanId,
+      stage: "criteria",
+      error: err,
+      retryable: true,
+      finalStatus: "failed",
+    });
     return NextResponse.json(
       { error: "Kriterler ayrıştırılırken bir hata oluştu." },
       { status: 500 }
